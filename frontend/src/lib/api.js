@@ -1,5 +1,8 @@
 import useAuth from "../store/useAuth";
 
+// URL du service chatbot (Flask). À définir dans .env.local / au déploiement.
+export const CHATBOT_URL = (import.meta.env.VITE_CHATBOT_URL || "http://localhost:5000").replace(/\/$/, "");
+
 /*
  * Promesse de refresh en cours, partagée entre toutes les requêtes :
  * si plusieurs appels reçoivent une 401 en même temps, un seul

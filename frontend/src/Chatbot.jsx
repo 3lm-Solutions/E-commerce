@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { CHATBOT_URL } from './lib/api';
 
 // Réponses du bot en Markdown (gras, listes...). react-markdown n'exécute pas
 // le HTML brut ; les images sont retirées (le modèle pourrait pointer n'importe où).
@@ -20,7 +21,7 @@ const MARKDOWN_COMPONENTS = {
 
 // Intervalle (ms) entre deux ajouts de caractères dans l'animation letter-by-letter.
 const ANIMATION_INTERVAL = 25;
-const API_URL = "http://localhost:5000/chat/message";
+const API_URL = `${CHATBOT_URL}/chat/message`;
 
 // Timeout (ms) au-delà duquel on abandonne une requête sans réponse (#1677).
 const REQUEST_TIMEOUT_MS = 30000;

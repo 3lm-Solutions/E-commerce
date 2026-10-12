@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { X, Plus, Loader2, ImagePlus, Trash2, Sparkles } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, CHATBOT_URL } from '../lib/api';
 
 /**
  * Schéma de validation Zod reprenant les règles du backend
@@ -198,7 +198,7 @@ function ProductFormModal({ isOpen, onClose, product, onSuccess }) {
 
     setIsGeneratingDescription(true);
     try {
-      const res = await fetch('http://localhost:5000/ai/generate-description', {
+      const res = await fetch(`${CHATBOT_URL}/ai/generate-description`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
