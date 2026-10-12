@@ -5,6 +5,7 @@
  */
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
+const { inspect } = require('util');
 const app = require('../app');
 const { User, RefreshToken, sequelize } = require('../../models');
 
@@ -50,6 +51,31 @@ describe('POST /api/auth/register', () => {
     expect(user.password).not.toBe(PASSWORD);
     expect(bcrypt.getRounds(user.password)).toBeGreaterThanOrEqual(12);
     expect(await bcrypt.compare(PASSWORD, user.password)).toBe(true);
+  });
+
+  test('ignore un champ role : l\'inscription publique crée toujours un client', async () => {
+    const { res, body } = await register({ role: 'admin' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.role).toBe('client');
+    expect((await User.findOne({ where: { email: body.email } })).role).toBe('client');
+
+    const admin = await request(app)
+      .get('/api/admin/orders')
+      .set('Authorization', `Bearer ${res.body.data.accessToken}`);
+    expect(admin.status).toBe(403);
+  });
+
+  test('n\'écrit pas le mot de passe dans les logs', async () => {
+    const spy = jest.spyOn(console, 'log');
+    try {
+      const secret = 'SecretLog123';
+      await register({ password: secret });
+      // inspect : un objet loggé (ex. req.body) doit être lu avec son contenu
+      const logged = spy.mock.calls.map((args) => args.map((a) => inspect(a, { depth: 5 })).join(' ')).join('\n');
+      expect(logged).not.toContain(secret);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   test('409 si l\'email existe déjà (sans tenir compte de la casse)', async () => {
