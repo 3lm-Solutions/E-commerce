@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import useAuth from "./store/useAuth";
 import { apiFetch } from "./lib/api";
 import useCartStore from "./store/cartStore";
+import NoReviews from "./components/NoReviews";
 
 function Hero(){
     const [categories,setCategories]=useState([]);
@@ -220,14 +221,20 @@ const categoryName=(categoryId)=>categories.find((category)=>category.id===categ
                     {/* hna rating */}
                     <div className="flex items-center mt-3">
 
-                        <span className="text-sm tracking-tight" aria-label={`Note : ${product.rating} sur 5`}>
-                            <span className="text-yellow-400">{"★".repeat(Math.round(product.rating))}</span>
-                            <span className="text-gray-300">{"★".repeat(5 - Math.round(product.rating))}</span>
-                        </span>
+                        {product.rating > 0 ? (
+                            <>
+                                <span className="text-sm tracking-tight" aria-label={`Note : ${product.rating} sur 5`}>
+                                    <span className="text-yellow-400">{"★".repeat(Math.round(product.rating))}</span>
+                                    <span className="text-gray-300">{"★".repeat(5 - Math.round(product.rating))}</span>
+                                </span>
 
-                        <span className="ml-2 text-sm text-gray-500">
-                            {product.rating.toFixed(1)}
-                        </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                    {product.rating.toFixed(1)}
+                                </span>
+                            </>
+                        ) : (
+                            <NoReviews />
+                        )}
 
                     </div>
 
@@ -298,13 +305,19 @@ const categoryName=(categoryId)=>categories.find((category)=>category.id===categ
 
                     <div className="flex items-center mt-3">
 
-                        <span className="text-yellow-400 text-sm tracking-tight">
-                            ★
-                        </span>
+                        {Number(product.ratingAvg) > 0 ? (
+                            <>
+                                <span className="text-yellow-400 text-sm tracking-tight">
+                                    ★
+                                </span>
 
-                        <span className="ml-2 text-sm text-gray-500">
-                            {product.ratingAvg.toFixed(1)}
-                        </span>
+                                <span className="ml-2 text-sm text-gray-500">
+                                    {Number(product.ratingAvg).toFixed(1)}
+                                </span>
+                            </>
+                        ) : (
+                            <NoReviews />
+                        )}
 
                     </div>
 

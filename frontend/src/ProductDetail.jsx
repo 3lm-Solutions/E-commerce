@@ -6,6 +6,7 @@ import useCartStore from "./store/cartStore";
 import useAuth from "./store/useAuth";
 import { apiFetch } from "./lib/api";
 import ReviewForm from "./components/ReviewForm";
+import NoReviews from "./components/NoReviews";
 
 function ProductDetail() {
     const addToCart = useCartStore((state) => state.addProductToCart);
@@ -355,15 +356,21 @@ function ProductDetail() {
                                 {product.name}
                             </h1>
                             <div className="flex items-center gap-2 mt-5">
-                                <span className="text-yellow-400 text-lg">
-                                    {"⭐".repeat(Math.round(Number(product.ratingAvg) || 0))}
-                                </span>
-                                <span className="text-gray-600">
-                                    {Number(product.ratingAvg) || 0}
-                                </span>
-                                <span className="text-gray-400">
-                                    • {totalReviews} avis
-                                </span>
+                                {Number(product.ratingAvg) > 0 ? (
+                                    <>
+                                        <span className="text-yellow-400 text-lg">
+                                            {"⭐".repeat(Math.round(Number(product.ratingAvg)))}
+                                        </span>
+                                        <span className="text-gray-600">
+                                            {Number(product.ratingAvg)}
+                                        </span>
+                                        <span className="text-gray-400">
+                                            • {totalReviews} avis
+                                        </span>
+                                    </>
+                                ) : (
+                                    <NoReviews className="text-base" />
+                                )}
                             </div>
                             <h2 className="font-bold text-5xl mt-8">
                                 {product.price} €
@@ -451,8 +458,14 @@ function ProductDetail() {
                 <div className="flex flex-col md:flex-row gap-8 mt-6 bg-white border border-gray-200 rounded-2xl p-6">
                     <div className="flex flex-col items-center justify-center md:w-48 md:border-r md:border-gray-100">
                         <span className="text-5xl font-bold text-gray-900">{avgRating}</span>
-                        <span className="text-yellow-400 text-lg mt-1">{"⭐".repeat(Math.round(Number(avgRating)))}</span>
-                        <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
+                        {totalReviews > 0 ? (
+                            <>
+                                <span className="text-yellow-400 text-lg mt-1">{"⭐".repeat(Math.round(Number(avgRating)))}</span>
+                                <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
+                            </>
+                        ) : (
+                            <NoReviews className="flex-col mt-1" />
+                        )}
                     </div>
 
                     <div className="flex-1 flex flex-col gap-2 justify-center">
@@ -601,9 +614,13 @@ function ProductDetail() {
                                     <span className="font-bold">
                                         {p.price} €
                                     </span>
-                                    <span>
-                                        ⭐ {Number(p.ratingAvg) || 0}
-                                    </span>
+                                    {Number(p.ratingAvg) > 0 ? (
+                                        <span>
+                                            ⭐ {Number(p.ratingAvg)}
+                                        </span>
+                                    ) : (
+                                        <NoReviews />
+                                    )}
                                 </div>
                             </div>
                         </Link>

@@ -1,6 +1,7 @@
 import { SlidersHorizontal, Search, ArrowUpDown, Sparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import NoReviews from './components/NoReviews';
 
 // Normalise les champs pour correspondre à l'affichage attendu
 // (image -> images, rating -> ratingAvg, category objet -> string).
@@ -509,9 +510,13 @@ currentProduct.map((product) => (
                                         {product.price} €
                                     </span>
 
-                                    <span className="text-yellow-500 text-sm">
-                                        ⭐ {product.rating}
-                                    </span>
+                                    {Number(product.rating) > 0 ? (
+                                        <span className="text-yellow-500 text-sm">
+                                            ⭐ {product.rating}
+                                        </span>
+                                    ) : (
+                                        <NoReviews />
+                                    )}
 
                                 </div>
 

@@ -3,6 +3,7 @@ import { Trash, Calculator, Lock, ShieldCheck, RotateCcw, Clock } from "lucide-r
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import useCartStore from "./store/cartStore";
+import NoReviews from "./components/NoReviews";
 
 function Cart() {
  
@@ -97,9 +98,13 @@ function Cart() {
                                         {p.price}€
                                     </span>
 
-                                    <span className="text-yellow-500">
-                                        ⭐{p.rating}
-                                    </span>
+                                    {Number(p.rating) > 0 ? (
+                                        <span className="text-yellow-500">
+                                            ⭐{p.rating}
+                                        </span>
+                                    ) : (
+                                        <NoReviews />
+                                    )}
                                 </div>
                             </div>
 
