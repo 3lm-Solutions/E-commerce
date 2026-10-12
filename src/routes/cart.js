@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * Routes du panier selon FonctionnalitéHaute#1774
  * 
- * Base URL: /api/cart
+ * Base URL: /api/cart (contrat : cahier 02, §2.1)
  * Toutes les routes requièrent une authentification JWT (middleware verifyToken)
  */
 
@@ -26,7 +26,7 @@ const router = express.Router();
 router.get('/', verifyToken, CartController.getCart);
 
 /**
- * @route   POST /api/cart/add
+ * @route   POST /api/cart/items
  * @desc    Ajouter un produit au panier
  * @access  Private (JWT required)
  * @headers Authorization: Bearer <accessToken>
@@ -45,10 +45,10 @@ router.get('/', verifyToken, CartController.getCart);
  * - 401: Token manquant ou invalide
  * - 500: Erreur serveur
  */
-router.post('/add', verifyToken, CartController.addItemToCart);
+router.post('/items', verifyToken, CartController.addItemToCart);
 
 /**
- * @route   PUT /api/cart/update/:product_id
+ * @route   PUT /api/cart/items/:product_id
  * @desc    Modifier la quantité d'un produit spécifique dans le panier
  * @access  Private (JWT required)
  * @headers Authorization: Bearer <accessToken>
@@ -68,10 +68,10 @@ router.post('/add', verifyToken, CartController.addItemToCart);
  * - 404: Panier non trouvé ou produit non trouvé dans le panier
  * - 500: Erreur serveur
  */
-router.put('/update/:product_id', verifyToken, CartController.updateItemQuantity);
+router.put('/items/:product_id', verifyToken, CartController.updateItemQuantity);
 
 /**
- * @route   DELETE /api/cart/remove/:product_id
+ * @route   DELETE /api/cart/items/:product_id
  * @desc    Retirer un produit spécifique du panier
  * @access  Private (JWT required)
  * @headers Authorization: Bearer <accessToken>
@@ -89,10 +89,10 @@ router.put('/update/:product_id', verifyToken, CartController.updateItemQuantity
  * - 404: Panier non trouvé ou produit non trouvé dans le panier
  * - 500: Erreur serveur
  */
-router.delete('/remove/:product_id', verifyToken, CartController.removeItemFromCart);
+router.delete('/items/:product_id', verifyToken, CartController.removeItemFromCart);
 
 /**
- * @route   DELETE /api/cart/clear
+ * @route   DELETE /api/cart
  * @desc    Vider complètement le panier de l'utilisateur connecté
  * @access  Private (JWT required)
  * @headers Authorization: Bearer <accessToken>
@@ -107,6 +107,15 @@ router.delete('/remove/:product_id', verifyToken, CartController.removeItemFromC
  * - 401: Token manquant ou invalide
  * - 500: Erreur serveur
  */
+router.delete('/', verifyToken, CartController.clearCart);
+
+/**
+ * Anciennes routes, conservées comme alias (dépréciées) : utiliser les routes
+ * /api/cart/items et DELETE /api/cart du cahier des charges (02, §2.1).
+ */
+router.post('/add', verifyToken, CartController.addItemToCart);
+router.put('/update/:product_id', verifyToken, CartController.updateItemQuantity);
+router.delete('/remove/:product_id', verifyToken, CartController.removeItemFromCart);
 router.delete('/clear', verifyToken, CartController.clearCart);
 
 module.exports = router;

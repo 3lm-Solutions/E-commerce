@@ -182,12 +182,12 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Ajoute un produit au panier.
-   * POST /api/cart/add avec { product_id, quantity }
+   * POST /api/cart/items avec { product_id, quantity }
    */
   addProductToCart: async (product, qty = 1) => {
     const quantity = qty > 0 ? qty : 1;
     try {
-      const res = await apiFetch("/api/cart/add", {
+      const res = await apiFetch("/api/cart/items", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({ product_id: product.id, quantity }),
@@ -224,11 +224,11 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Supprime un produit du panier.
-   * DELETE /api/cart/remove/:product_id
+   * DELETE /api/cart/items/:product_id
    */
   deleteProductFromCart: async (productId) => {
     try {
-      const res = await apiFetch(`/api/cart/remove/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -251,7 +251,7 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Augmente la quantité d'un produit dans le panier.
-   * PUT /api/cart/update/:product_id avec la nouvelle quantité
+   * PUT /api/cart/items/:product_id avec la nouvelle quantité
    */
   increaseQuantity: async (productId) => {
     const state = get();
@@ -260,7 +260,7 @@ const useCartStore = create((set, get) => ({
     const newQty = item.quantity + 1;
 
     try {
-      const res = await apiFetch(`/api/cart/update/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ quantity: newQty }),
@@ -286,7 +286,7 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Diminue la quantité d'un produit dans le panier.
-   * PUT /api/cart/update/:product_id avec la nouvelle quantité (min 1)
+   * PUT /api/cart/items/:product_id avec la nouvelle quantité (min 1)
    */
   decreaseQuantity: async (productId) => {
     const state = get();
@@ -295,7 +295,7 @@ const useCartStore = create((set, get) => ({
     const newQty = Math.max(1, item.quantity - 1);
 
     try {
-      const res = await apiFetch(`/api/cart/update/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ quantity: newQty }),
@@ -321,11 +321,11 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Vide le panier.
-   * DELETE /api/cart/clear
+   * DELETE /api/cart
    */
   clearCart: async () => {
     try {
-      const res = await apiFetch("/api/cart/clear", {
+      const res = await apiFetch("/api/cart", {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
