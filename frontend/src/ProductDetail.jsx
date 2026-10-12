@@ -217,9 +217,10 @@ function ProductDetail() {
         };
     }, [id]);
 
-    // Produits similaires : GET /api/products?categoryId=...&limit=8 une fois le produit chargé
+    // Produits similaires : GET /recommendations/similar/:id (4 meilleurs scores :
+    // même catégorie, tags communs, prix proche), une fois le produit chargé
     useEffect(() => {
-        if (!product?.category?.id) {
+        if (!product?.id) {
             setProduitSimilaire([]);
             return;
         }
@@ -228,19 +229,14 @@ function ProductDetail() {
 
         async function loadSimilar() {
             try {
-                const response = await fetch(
-                    `/api/products?categoryId=${product.category.id}&limit=8`
-                );
+                const response = await fetch(`/recommendations/similar/${product.id}`);
                 const data = await response.json();
                 if (cancelled) return;
                 if (!response.ok) {
                     setProduitSimilaire([]);
                     return;
                 }
-                const list = data?.data?.products ?? data?.products ?? [];
-                // Exclut le produit courant
-                const others = list.filter((p) => String(p.id) !== String(product.id));
-                setProduitSimilaire(others);
+                setProduitSimilaire(data?.data?.similarProducts ?? []);
             } catch (err) {
                 if (!cancelled) {
                     console.error("Erreur chargement produits similaires:", err);
@@ -589,9 +585,8 @@ function ProductDetail() {
                 <h2 className="text-2xl font-bold text-gray-900">Produits similaires</h2>
             </div>
 
-            <div className="grid grid-cols-4 gap-6 mt-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {produitSimilaire.map((p) => {
-                    const pImages = Array.isArray(p.images) ? p.images : [];
                     return (
                         <Link
                             key={p.id}
@@ -599,7 +594,7 @@ function ProductDetail() {
                             className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition"
                         >
                             <img
-                                src={pImages[0]}
+                                src={p.image}
                                 alt={p.name}
                                 className="w-full h-52 object-cover"
                             />

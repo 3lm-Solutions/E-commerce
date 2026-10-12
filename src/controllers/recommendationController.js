@@ -44,6 +44,8 @@ const trendingService = require('../services/trendingService');
             name: product.name,
             price: parseFloat(product.price),
             image: product.images && product.images.length > 0 ? product.images[0] : null,
+            category: product.category ? { id: product.category.id, name: product.category.name } : null,
+            ratingAvg: parseFloat(product.ratingAvg) || 0,
             similarityScore: score
         }));
 
