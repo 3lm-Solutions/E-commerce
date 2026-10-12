@@ -5,7 +5,7 @@ import {
   TrendingUp, Package, DollarSign, Bell, Search, 
 Sparkles, ArrowUpRight, MoreVertical, X, CheckCircle2, ArrowUpDown, Loader2, Plus, Pencil, Trash2, Tag, FolderTree,
 Eye, Calendar, RefreshCw, MapPin, CreditCard, Truck, Filter, Power, RotateCcw, UserCheck, BarChart3,
-  UserPlus, AlertTriangle, History
+  UserPlus, AlertTriangle, History, Download
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend
@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import useCartStore from './store/cartStore';
 import useAuth from './store/useAuth';
 import { apiFetch } from './lib/api';
+import { toCsv, formatAmount, downloadCsv } from './lib/csv';
 import ProductFormModal from './components/ProductFormModal';
 import CategoryFormModal from './components/CategoryFormModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
@@ -89,6 +90,7 @@ function AdminDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderDateFilter, setOrderDateFilter] = useState('');
   const [orderClientFilter, setOrderClientFilter] = useState('');
+  const [isExportingOrders, setIsExportingOrders] = useState(false);
   const [ordersCurrentPage, setOrdersCurrentPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 20 });
   const [ordersPerPage, setOrdersPerPage] = useState(20);
@@ -188,6 +190,51 @@ const [topProducts, setTopProducts] = useState([]);
         availableTransitions: order.availableTransitions || []
       };
     });
+  }
+
+  // Export CSV des commandes filtrées (cahier 03, §3.1) : toutes les pages
+  // de GET /api/admin/orders avec les filtres actuels, fichier généré ici.
+  async function exportOrdersCsv() {
+    setIsExportingOrders(true);
+    try {
+      const orders = [];
+      const MAX_PAGES = 50; // 100 commandes par page côté backend
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const params = new URLSearchParams({ page, limit: 100 });
+        if (orderStatusFilter) params.set('status', orderStatusFilter);
+        if (orderDateFilter) params.set('startDate', orderDateFilter);
+        if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
+
+        const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
+        }
+        orders.push(...(data?.data?.orders ?? []));
+        if (page >= (data?.data?.pagination?.totalPages || 1)) break;
+      }
+
+      if (orders.length === 0) {
+        toast.error('Aucune commande à exporter avec ces filtres.');
+        return;
+      }
+
+      const csv = toCsv([
+        { header: 'Numéro', value: (o) => o.orderId },
+        { header: 'Date', value: (o) => new Date(o.createdAt).toLocaleString('fr-FR') },
+        { header: 'Client', value: (o) => o.user?.name || o.shippingAddress?.fullName || '' },
+        { header: 'Email', value: (o) => o.user?.email || '' },
+        { header: 'Statut', value: (o) => STATUS_LABELS[o.status] || o.status },
+        { header: 'Articles', value: (o) => (o.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) },
+        { header: 'Total (€)', value: (o) => formatAmount(o.totalAmount) }
+      ], orders);
+      downloadCsv(`commandes-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      toast.success(`${orders.length} commande${orders.length > 1 ? 's' : ''} exportée${orders.length > 1 ? 's' : ''}`);
+    } catch (error) {
+      toast.error(error?.message || "Impossible d'exporter les commandes.");
+    } finally {
+      setIsExportingOrders(false);
+    }
   }
 
   // Rafraîchir la liste des commandes admin (avec filtres + pagination)
@@ -1389,6 +1436,16 @@ loadAdminCategories();
                               Réinitialiser
                           </button>
                       )}
+
+                      {/* Export CSV des commandes correspondant aux filtres */}
+                      <button
+                          onClick={exportOrdersCsv}
+                          disabled={isExportingOrders}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-white border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                          {isExportingOrders ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                          Exporter CSV
+                      </button>
                   </div>
                 </div>
 
