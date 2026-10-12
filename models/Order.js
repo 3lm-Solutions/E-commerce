@@ -164,6 +164,16 @@ module.exports = (sequelize) => {
           order.orderId = `ORD-${timestamp}-${random}`;
         }
       },
+
+      // Première ligne de l'historique des états (dans la transaction de création)
+      afterCreate: async (order, options) => {
+        await sequelize.models.OrderStatusHistory.create({
+          orderId: order.id,
+          fromStatus: null,
+          toStatus: order.status,
+          changedBy: order.userId
+        }, { transaction: options.transaction });
+      },
       
       // Hook pour valider les transitions de statut
       beforeUpdate: (order) => {
@@ -206,10 +216,19 @@ module.exports = (sequelize) => {
   /**
    * Méthode d'instance pour mettre à jour le statut avec validation
    * @param {string} newStatus - Nouveau statut
+   * @param {Object} [options]
+   * @param {string|null} [options.changedBy] - Auteur du changement (null : système)
    * @returns {Promise<Order>} - Instance mise à jour
    */
-  Order.prototype.updateStatus = async function(newStatus) {
+  Order.prototype.updateStatus = async function(newStatus, { changedBy = null } = {}) {
     const currentStatus = this.status;
+    // Ligne d'historique écrite dans la même transaction que le changement d'état
+    const recordHistory = (transaction) => sequelize.models.OrderStatusHistory.create({
+      orderId: this.id,
+      fromStatus: currentStatus,
+      toStatus: newStatus,
+      changedBy
+    }, { transaction });
     
     console.log(`📦 Commande ${this.orderId}: Tentative de changement de statut ${currentStatus} -> ${newStatus}`);
     
@@ -274,6 +293,7 @@ module.exports = (sequelize) => {
             throw new Error(`La commande ${this.orderId} a déjà changé de statut (${fresh ? fresh.status : 'introuvable'}).`);
           }
           await this.save({ transaction: t });
+          await recordHistory(t);
 
           // Seuls les articles dont le stock a été décrémenté (commandes créées
           // après l'ajout du contrôle de stock) sont remis en stock.
@@ -294,8 +314,11 @@ module.exports = (sequelize) => {
         throw error;
       }
     } else {
-      // Sauvegarder les changements
-      await this.save();
+      // Sauvegarder les changements et l'historique ensemble
+      await sequelize.transaction(async (t) => {
+        await this.save({ transaction: t });
+        await recordHistory(t);
+      });
     }
     
     console.log(`✅ Commande ${this.orderId}: Statut mis à jour vers "${newStatus}"`);
@@ -365,6 +388,12 @@ module.exports = (sequelize) => {
       foreignKey: 'userId',
       as: 'user',
       onDelete: 'CASCADE'
+    });
+
+    // Historique des changements d'état
+    Order.hasMany(models.OrderStatusHistory, {
+      foreignKey: 'orderId',
+      as: 'statusHistory'
     });
 
     // Note: Les items sont stockés en JSONB pour préserver l'état

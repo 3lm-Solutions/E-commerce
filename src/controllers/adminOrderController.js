@@ -1,4 +1,4 @@
-const { Order, User } = require('../../models');
+const { Order, User, OrderStatusHistory } = require('../../models');
 const { Op } = require('sequelize');
 
 /**
@@ -7,7 +7,7 @@ const { Op } = require('sequelize');
  *
  * Routes ADMIN uniquement (middleware verifyAdmin requis au niveau des routes) :
  * - GET    /api/admin/orders                : Liste toutes les commandes (tous utilisateurs)
- * - GET    /api/admin/orders/:orderId       : Détail complet d'une commande (sans filtre userId)
+ * - GET    /api/admin/orders/:orderId       : Détail complet d'une commande (sans filtre userId), avec statusHistory
  * - PUT    /api/admin/orders/:orderId/status: Changer le statut de N'IMPORTE QUELLE commande
  *
  * Contrairement aux routes utilisateur (/api/orders), ces routes n'appliquent
@@ -197,10 +197,27 @@ class AdminOrderController {
 
       console.log(`✅ Commande ${orderId} trouvée (${order.status})`);
 
+      // Historique des états, du plus ancien au plus récent (cahier 03, §3.1)
+      const history = await OrderStatusHistory.findAll({
+        where: { orderId: order.id },
+        include: [{ model: User, as: 'author', attributes: ['id', 'email', 'name', 'role'] }],
+        order: [['created_at', 'ASC']]
+      });
+
       res.status(200).json({
         success: true,
         message: 'Commande récupérée avec succès',
-        data: AdminOrderController.formatOrder(order)
+        data: {
+          ...AdminOrderController.formatOrder(order),
+          statusHistory: history.map((entry) => ({
+            fromStatus: entry.fromStatus,
+            toStatus: entry.toStatus,
+            changedAt: entry.created_at,
+            changedBy: entry.author
+              ? { id: entry.author.id, email: entry.author.email, name: entry.author.name, role: entry.author.role }
+              : null
+          }))
+        }
       });
 
     } catch (error) {
@@ -260,7 +277,7 @@ class AdminOrderController {
 
       // Tenter la mise à jour du statut (validation via la machine à états)
       try {
-        await order.updateStatus(newStatus);
+        await order.updateStatus(newStatus, { changedBy: req.user.id });
 
         console.log(`✅ Commande ${order.orderId} mise à jour vers "${newStatus}"`);
 

@@ -225,7 +225,7 @@ class OrderController {
 
       // Tenter la mise à jour du statut (avec validation automatique)
       try {
-        await order.updateStatus(newStatus);
+        await order.updateStatus(newStatus, { changedBy: req.user.id });
 
         res.status(200).json({
           success: true,
@@ -604,7 +604,7 @@ class OrderController {
         }
 
         // Utiliser updateStatus qui se charge de la validation et de la mise à jour de cancelledAt
-        await order.updateStatus('cancelled');
+        await order.updateStatus('cancelled', { changedBy: req.user.id });
 
         console.log(`✅ Commande ${orderId} annulée avec succès`);
 

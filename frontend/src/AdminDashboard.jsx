@@ -5,7 +5,7 @@ import {
   TrendingUp, Package, DollarSign, Bell, Search, 
 Sparkles, ArrowUpRight, MoreVertical, X, CheckCircle2, ArrowUpDown, Loader2, Plus, Pencil, Trash2, Tag, FolderTree,
 Eye, Calendar, RefreshCw, MapPin, CreditCard, Truck, Filter, Power, RotateCcw, UserCheck, BarChart3,
-  UserPlus, AlertTriangle
+  UserPlus, AlertTriangle, History
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend
@@ -2316,6 +2316,40 @@ confirmDisabled={
                       </div>
                     </div>
 </div>
+
+                  {/* Historique des états (cahier 03, §3.1) */}
+                  {selectedOrder.statusHistory?.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                        <History size={16} className="text-gray-400" />
+                        Historique des états
+                      </h3>
+                      <ol className="relative border-l border-gray-200 ml-2 space-y-4">
+                        {selectedOrder.statusHistory.map((entry, index) => (
+                          <li key={index} className="ml-4">
+                            <span className={`absolute -left-1.5 mt-1.5 w-3 h-3 rounded-full border-2 border-white ${STATUS_BADGES[entry.toStatus] || 'bg-gray-100'}`} />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGES[entry.toStatus] || 'bg-gray-100 text-gray-700'}`}>
+                                {STATUS_LABELS[entry.toStatus] || entry.toStatus}
+                              </span>
+                              {entry.fromStatus ? (
+                                <span className="text-xs text-gray-400">depuis « {STATUS_LABELS[entry.fromStatus] || entry.fromStatus} »</span>
+                              ) : (
+                                <span className="text-xs text-gray-400">création de la commande</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(entry.changedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}
+                              {' • '}
+                              {entry.changedBy
+                                ? `${entry.changedBy.name || entry.changedBy.email}${entry.changedBy.role === 'admin' ? ' (admin)' : ''}`
+                                : 'Système'}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </>
               )}
             </div>
