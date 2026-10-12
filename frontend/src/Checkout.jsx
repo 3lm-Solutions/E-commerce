@@ -32,8 +32,8 @@ function Checkout() {
   });
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.2;
-  const total = subtotal + tax;
+  // Les prix des produits sont TTC : le total est la somme des articles, comme côté backend
+  const total = subtotal;
 
 const onSubmit = async (data) => {
       if (cart.length === 0) {
@@ -300,10 +300,6 @@ const onSubmit = async (data) => {
               <span className="text-gray-500">Shipping</span>
               <span className="font-medium text-emerald-600">Free</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Tax</span>
-              <span className="font-medium">{tax.toFixed(2)}€</span>
-            </div>
           </div>
 
           <hr className="my-5" />
@@ -314,6 +310,7 @@ const onSubmit = async (data) => {
               {total.toFixed(2)}€
             </h2>
           </div>
+          <p className="-mt-6 mb-8 text-right text-xs text-gray-500">TVA incluse</p>
 
           {/* Désactivé pendant l'envoi : un double clic créait deux commandes */}
           <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={isSubmitting}>

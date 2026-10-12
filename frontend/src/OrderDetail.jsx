@@ -193,7 +193,7 @@ if (loading) {
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between text-gray-600">
                                 <span>Sous-total</span>
-                                <span>{(order.total - (order.total * 0.2 / 1.2)).toFixed(2)} €</span> {/* Calcul approximatif du HT selon votre 20% TVA */}
+                                <span>{order.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)} €</span>
                             </div>
                             <div className="flex justify-between text-gray-600">
                                 <span>Livraison</span>

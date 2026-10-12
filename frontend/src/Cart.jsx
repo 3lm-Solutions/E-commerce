@@ -27,8 +27,8 @@ function Cart() {
         (sum, item) => sum + item.quantity,
         0
     );
-    const tax=subtotal*0.2;
-    const total=subtotal+tax;
+    // Les prix des produits sont TTC : le total est la somme des articles, comme côté backend
+    const total=subtotal;
     
     if (cart.length === 0) {
     return (
@@ -184,16 +184,13 @@ function Cart() {
                             <p className="font-semibold text-emerald-600">Free</p>
                         </div>
 
-                        <div className="flex items-center justify-between py-3 text-sm">
-                            <p className="text-gray-500">Tax (20%)</p>
-                            <p className="font-semibold text-gray-900">{tax.toFixed(2)}€</p>
-                        </div>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-gray-200 mt-2 pt-4 mb-6">
+                    <div className="flex items-center justify-between border-t border-gray-200 mt-2 pt-4">
                         <h3 className="text-lg font-bold text-gray-900">Total</h3>
                         <p className="text-2xl font-extrabold text-indigo-600">{total.toFixed(2)}€</p>
                     </div>
+                    <p className="mt-1 mb-6 text-right text-xs text-gray-500">TVA incluse</p>
 
                     <Link to="/checkout">
                         <button className="w-full flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3.5 rounded-xl shadow transition">
