@@ -87,7 +87,7 @@ module.exports = {
         id: productIds.laptop,
         name: 'MacBook Pro 14"',
         description: 'Ordinateur portable haute performance avec puce M2',
-        price: 2499.99,
+        price: 2499.00,
         stock: 10,
         category_id: categoryIds.electronics,
         images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800'],
@@ -102,7 +102,7 @@ module.exports = {
         id: productIds.phone,
         name: 'iPhone 15 Pro',
         description: 'Dernier iPhone avec caméra professionnelle',
-        price: 1199.99,
+        price: 1229.00,
         stock: 25,
         category_id: categoryIds.electronics,
         images: ['https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800'],
@@ -231,7 +231,7 @@ module.exports = {
         cart_id: cartIds.cart1,
         product_id: productIds.laptop,
         quantity: 1,
-        price: 2499.99,
+        price: 2499.00,
         created_at: now,
         updated_at: now
       },
@@ -249,7 +249,7 @@ module.exports = {
         cart_id: cartIds.cart2,
         product_id: productIds.phone,
         quantity: 1,
-        price: 1199.99,
+        price: 1229.00,
         created_at: now,
         updated_at: now
       }
