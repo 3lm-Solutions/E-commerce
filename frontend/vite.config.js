@@ -8,6 +8,10 @@ export default defineConfig({
 
 // Proxy toutes les requêtes /api vers le backend Node.js (port 3000)
   server: {
+    // Les mocks MSW importent les fixtures partagées (../fixtures), hors du dossier frontend
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

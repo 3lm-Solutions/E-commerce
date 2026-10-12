@@ -1,0 +1,425 @@
+[
+  {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "fixture_key": "r_001",
+    "product_id": "10000000-0000-4000-8000-000000000002",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Très utile, mais certains exemples Java sont un peu datés.",
+    "created_at": "2026-10-01T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "fixture_key": "r_002",
+    "product_id": "10000000-0000-4000-8000-000000000009",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Très bon maintien du pied, parfaites pour mes sorties running.",
+    "created_at": "2026-10-01T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000003",
+    "fixture_key": "r_003",
+    "product_id": "10000000-0000-4000-8000-000000000010",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Facile à prendre en main, je ne prends plus la voiture en ville.",
+    "created_at": "2026-10-01T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000004",
+    "fixture_key": "r_004",
+    "product_id": "10000000-0000-4000-8000-000000000006",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 4,
+    "comment": "Machine très performante, mais 512 Go de SSD c'est juste à ce prix.",
+    "created_at": "2026-10-02T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000005",
+    "fixture_key": "r_005",
+    "product_id": "10000000-0000-4000-8000-000000000015",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Très complet. Mieux vaut déjà bien connaître JavaScript avant de le lire.",
+    "created_at": "2026-10-02T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000006",
+    "fixture_key": "r_006",
+    "product_id": "10000000-0000-4000-8000-000000000005",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 4,
+    "comment": "Bonne qualité pour le prix, le tissu ne se déforme pas après lavage.",
+    "created_at": "2026-10-02T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000007",
+    "fixture_key": "r_007",
+    "product_id": "10000000-0000-4000-8000-000000000004",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Le A17 Pro est très fluide, aucun ralentissement en jeu ou en montage vidéo.",
+    "created_at": "2026-10-03T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000008",
+    "fixture_key": "r_008",
+    "product_id": "10000000-0000-4000-8000-000000000014",
+    "user_id": "20000000-0000-4000-8000-000000000007",
+    "rating": 5,
+    "comment": "Excellent produit, très rapide et bien fini.",
+    "created_at": "2026-10-03T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000009",
+    "fixture_key": "r_009",
+    "product_id": "10000000-0000-4000-8000-000000000011",
+    "user_id": "20000000-0000-4000-8000-000000000008",
+    "rating": 4,
+    "comment": "Bon smartphone, caméra impressionnante.",
+    "created_at": "2026-10-03T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000010",
+    "fixture_key": "r_010",
+    "product_id": "10000000-0000-4000-8000-000000000012",
+    "user_id": "20000000-0000-4000-8000-000000000007",
+    "rating": 5,
+    "comment": "Indispensable pour tout développeur JavaScript.",
+    "created_at": "2026-10-04T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000011",
+    "fixture_key": "r_011",
+    "product_id": "10000000-0000-4000-8000-000000000001",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 4,
+    "comment": "Beau canapé et confortable. Le montage prend du temps et l'assise est un peu ferme au début.",
+    "created_at": "2026-10-04T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000012",
+    "fixture_key": "r_012",
+    "product_id": "10000000-0000-4000-8000-000000000010",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 4,
+    "comment": "Bonne autonomie, autour de 70 km en pratique. Le vélo est assez lourd à porter dans les escaliers.",
+    "created_at": "2026-10-04T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000013",
+    "fixture_key": "r_013",
+    "product_id": "10000000-0000-4000-8000-000000000002",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Exemples clairs et conseils applicables tout de suite. À lire pour tout développeur.",
+    "created_at": "2026-10-05T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000014",
+    "fixture_key": "r_014",
+    "product_id": "10000000-0000-4000-8000-000000000009",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 4,
+    "comment": "Légères et confortables. Les lacets se défont un peu trop facilement.",
+    "created_at": "2026-10-05T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000015",
+    "fixture_key": "r_015",
+    "product_id": "10000000-0000-4000-8000-000000000003",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Très fluide et silencieuse, mes enfants l'adorent.",
+    "created_at": "2026-10-05T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000016",
+    "fixture_key": "r_016",
+    "product_id": "10000000-0000-4000-8000-000000000011",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 4,
+    "comment": "Très bon iPhone, mais l'autonomie est juste en usage intensif.",
+    "created_at": "2026-10-06T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000017",
+    "fixture_key": "r_017",
+    "product_id": "10000000-0000-4000-8000-000000000004",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Très bon téléphone, la caméra 48 MP est impressionnante. Un peu lourd et le prix reste élevé.",
+    "created_at": "2026-10-06T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000018",
+    "fixture_key": "r_018",
+    "product_id": "10000000-0000-4000-8000-000000000008",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 4,
+    "comment": "Zoom photo impressionnant avec le capteur 200 MP. Le téléphone est grand, difficile à utiliser d'une main.",
+    "created_at": "2026-10-06T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000019",
+    "fixture_key": "r_019",
+    "product_id": "10000000-0000-4000-8000-000000000016",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Bonne épaisseur, les coutures sont solides. J'en ai pris trois.",
+    "created_at": "2026-10-07T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000020",
+    "fixture_key": "r_020",
+    "product_id": "10000000-0000-4000-8000-000000000012",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Il explique enfin clairement les closures et les prototypes.",
+    "created_at": "2026-10-07T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000021",
+    "fixture_key": "r_021",
+    "product_id": "10000000-0000-4000-8000-000000000015",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Avancé mais très bien expliqué, les exemples sont concrets.",
+    "created_at": "2026-10-07T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000022",
+    "fixture_key": "r_022",
+    "product_id": "10000000-0000-4000-8000-000000000005",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 4,
+    "comment": "Joli jean et confortable, mais il taille un peu petit : prendre une taille au-dessus.",
+    "created_at": "2026-10-08T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000023",
+    "fixture_key": "r_023",
+    "product_id": "10000000-0000-4000-8000-000000000013",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 3,
+    "comment": "Correct pour le prix, mais la couleur a un peu passé après quelques lavages.",
+    "created_at": "2026-10-08T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000024",
+    "fixture_key": "r_024",
+    "product_id": "10000000-0000-4000-8000-000000000014",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Écran excellent et autonomie remarquable, idéal pour travailler en déplacement.",
+    "created_at": "2026-10-08T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000025",
+    "fixture_key": "r_025",
+    "product_id": "10000000-0000-4000-8000-000000000006",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Écran superbe et autonomie excellente. Les 18 Go de RAM suffisent pour mon usage.",
+    "created_at": "2026-10-09T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000026",
+    "fixture_key": "r_026",
+    "product_id": "10000000-0000-4000-8000-000000000005",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Denim de belle qualité, la coupe slim tombe très bien.",
+    "created_at": "2026-10-09T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000027",
+    "fixture_key": "r_027",
+    "product_id": "10000000-0000-4000-8000-000000000010",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Parfait pour aller au travail, l'assistance est agréable et la batterie tient la semaine.",
+    "created_at": "2026-10-09T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000028",
+    "fixture_key": "r_028",
+    "product_id": "10000000-0000-4000-8000-000000000016",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 4,
+    "comment": "Coton bio agréable à porter. Il a légèrement rétréci au premier lavage.",
+    "created_at": "2026-10-10T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000029",
+    "fixture_key": "r_029",
+    "product_id": "10000000-0000-4000-8000-000000000001",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Très joli dans le salon, le tissu gris clair est doux et la structure solide.",
+    "created_at": "2026-10-10T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000030",
+    "fixture_key": "r_030",
+    "product_id": "10000000-0000-4000-8000-000000000002",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 5,
+    "comment": "Un classique : les chapitres sur le nommage et les fonctions ont changé ma façon de coder.",
+    "created_at": "2026-10-10T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000031",
+    "fixture_key": "r_031",
+    "product_id": "10000000-0000-4000-8000-000000000013",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 4,
+    "comment": "Confortable grâce au stretch, coupe flatteuse.",
+    "created_at": "2026-10-11T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000032",
+    "fixture_key": "r_032",
+    "product_id": "10000000-0000-4000-8000-000000000012",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Court et dense, très bon pour comprendre les pièges du langage. Ne couvre pas ES6.",
+    "created_at": "2026-10-11T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000033",
+    "fixture_key": "r_033",
+    "product_id": "10000000-0000-4000-8000-000000000003",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Les temps de chargement sont presque nuls grâce au SSD. Graphismes superbes.",
+    "created_at": "2026-10-11T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000034",
+    "fixture_key": "r_034",
+    "product_id": "10000000-0000-4000-8000-000000000006",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 5,
+    "comment": "Puissant et silencieux, la puce M3 Pro gère sans problème mes projets de développement.",
+    "created_at": "2026-10-12T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000035",
+    "fixture_key": "r_035",
+    "product_id": "10000000-0000-4000-8000-000000000011",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 5,
+    "comment": "Compact et puissant, les photos en mode portrait sont superbes.",
+    "created_at": "2026-10-12T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000036",
+    "fixture_key": "r_036",
+    "product_id": "10000000-0000-4000-8000-000000000015",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 5,
+    "comment": "Excellent pour structurer une application Node.js : streams, modules, asynchrone.",
+    "created_at": "2026-10-12T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000037",
+    "fixture_key": "r_037",
+    "product_id": "10000000-0000-4000-8000-000000000004",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Écran magnifique et photos superbes, même de nuit. L'autonomie tient largement la journée.",
+    "created_at": "2026-10-13T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000038",
+    "fixture_key": "r_038",
+    "product_id": "10000000-0000-4000-8000-000000000014",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Rapide et bien construit. Il chauffe un peu lors des longues compilations.",
+    "created_at": "2026-10-13T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000039",
+    "fixture_key": "r_039",
+    "product_id": "10000000-0000-4000-8000-000000000009",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Amorti excellent, je cours 10 km sans douleur aux genoux.",
+    "created_at": "2026-10-13T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000040",
+    "fixture_key": "r_040",
+    "product_id": "10000000-0000-4000-8000-000000000008",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 5,
+    "comment": "Le S Pen est vraiment pratique pour prendre des notes. Écran AMOLED très lumineux.",
+    "created_at": "2026-10-14T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000041",
+    "fixture_key": "r_041",
+    "product_id": "10000000-0000-4000-8000-000000000017",
+    "user_id": "20000000-0000-4000-8000-000000000009",
+    "rating": 5,
+    "comment": "Très beau rendu dans le salon, la lumière est douce et le bras orientable est pratique.",
+    "created_at": "2026-10-14T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000042",
+    "fixture_key": "r_042",
+    "product_id": "10000000-0000-4000-8000-000000000017",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "rating": 4,
+    "comment": "Joli design, mais le pied est un peu léger.",
+    "created_at": "2026-10-14T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000043",
+    "fixture_key": "r_043",
+    "product_id": "10000000-0000-4000-8000-000000000018",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 4,
+    "comment": "Outils solides et bien en main. Le sécateur coupe net.",
+    "created_at": "2026-10-15T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000044",
+    "fixture_key": "r_044",
+    "product_id": "10000000-0000-4000-8000-000000000018",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "rating": 5,
+    "comment": "Parfait pour mon balcon, rien n'a rouillé après un été dehors.",
+    "created_at": "2026-10-15T10:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000045",
+    "fixture_key": "r_045",
+    "product_id": "10000000-0000-4000-8000-000000000019",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "rating": 5,
+    "comment": "Ne glisse pas du tout, même en transpirant. Épaisseur confortable.",
+    "created_at": "2026-10-15T11:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000046",
+    "fixture_key": "r_046",
+    "product_id": "10000000-0000-4000-8000-000000000019",
+    "user_id": "20000000-0000-4000-8000-000000000007",
+    "rating": 4,
+    "comment": "Bon tapis, une légère odeur au déballage qui part en deux jours.",
+    "created_at": "2026-10-16T09:00:00.000Z"
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000047",
+    "fixture_key": "r_047",
+    "product_id": "10000000-0000-4000-8000-000000000020",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "rating": 5,
+    "comment": "Prise en main agréable et elles ne roulent pas au sol.",
+    "created_at": "2026-10-16T10:00:00.000Z"
+  }
+]

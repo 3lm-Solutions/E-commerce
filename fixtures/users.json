@@ -1,0 +1,112 @@
+[
+  {
+    "id": "20000000-0000-4000-8000-000000000001",
+    "fixture_key": "u_001",
+    "email": "admin@3lm-solutions.com",
+    "name": "Admin 3LM",
+    "role": "admin",
+    "password": "AdminPassword123",
+    "is_active": true,
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000002",
+    "fixture_key": "u_002",
+    "email": "user@example.com",
+    "name": "Utilisateur Test",
+    "role": "client",
+    "password": "UserPassword123",
+    "is_active": true,
+    "created_at": "2026-09-02T09:00:00.000Z",
+    "updated_at": "2026-09-02T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000003",
+    "fixture_key": "u_003",
+    "email": "sophie.martin@example.com",
+    "name": "Sophie Martin",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-03T09:00:00.000Z",
+    "updated_at": "2026-09-03T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000004",
+    "fixture_key": "u_004",
+    "email": "karim.benali@example.com",
+    "name": "Karim Benali",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-04T09:00:00.000Z",
+    "updated_at": "2026-09-04T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000005",
+    "fixture_key": "u_005",
+    "email": "lucas.dubois@example.com",
+    "name": "Lucas Dubois",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-05T09:00:00.000Z",
+    "updated_at": "2026-09-05T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000006",
+    "fixture_key": "u_006",
+    "email": "amina.elidrissi@example.com",
+    "name": "Amina El Idrissi",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-06T09:00:00.000Z",
+    "updated_at": "2026-09-06T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000007",
+    "fixture_key": "u_007",
+    "email": "client1@example.com",
+    "name": "Claire Moreau",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-07T09:00:00.000Z",
+    "updated_at": "2026-09-07T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000008",
+    "fixture_key": "u_008",
+    "email": "client2@example.com",
+    "name": "Youssef Alaoui",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-08T09:00:00.000Z",
+    "updated_at": "2026-09-08T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000009",
+    "fixture_key": "u_009",
+    "email": "thomas.bernard@example.com",
+    "name": "Thomas Bernard",
+    "role": "client",
+    "password": "Password123",
+    "is_active": true,
+    "created_at": "2026-09-09T09:00:00.000Z",
+    "updated_at": "2026-09-09T09:00:00.000Z"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000010",
+    "fixture_key": "u_010",
+    "email": "lea.petit@example.com",
+    "name": "Léa Petit",
+    "role": "client",
+    "password": "Password123",
+    "is_active": false,
+    "created_at": "2026-09-10T09:00:00.000Z",
+    "updated_at": "2026-09-10T09:00:00.000Z"
+  }
+]
