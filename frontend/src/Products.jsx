@@ -49,7 +49,8 @@ function Products() {
     const [sort,setSort]=useState("populaire");
     
     const [currentPage,setCurrentPage]=useState(1);
-    const productsPerPage=8;
+    // 3 colonnes sur desktop (cahier 06 §2.2) : 3 rangées complètes par page
+    const productsPerPage=9;
 
     const lastProduct=productsPerPage*currentPage;
     const firstProduct=lastProduct-productsPerPage;
@@ -467,7 +468,7 @@ const filteredProducts = (nlpResult ? nlpResult.products : products)
                 {/* filtre des produoits */}
 
                   
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredProducts.length === 0 ? (
                         <div className="col-span-full text-center py-20">
                             <h2 className="text-3xl font-bold">🔍No products found</h2>
