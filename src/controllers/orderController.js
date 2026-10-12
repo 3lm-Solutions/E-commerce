@@ -26,7 +26,7 @@ const { v4: uuidv4 } = require('uuid');
  * 
  * Fonctionnalités:
  * - Création de commandes depuis le panier (FonctionnalitéHaute#1778)
- * - Gestion machine à états (pending -> confirmed -> shipped -> delivered) (FonctionnalitéHaute#1777)
+ * - Gestion machine à états (pending -> confirmed -> processing -> shipped -> delivered) (FonctionnalitéHaute#1777)
  * - Historique et consultation des commandes (FonctionnalitéHaute#1779)
  * - Validation des transitions de statut
  * - Sécurité : utilisateurs n'accèdent qu'à leurs propres commandes
@@ -299,7 +299,7 @@ class OrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
+          'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -335,8 +335,9 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceledAt,
+        cancelledAt: order.cancelledAt,
         confirmedAt: order.confirmedAt,
+        processingAt: order.processingAt,
         shippedAt: order.shippedAt,
         deliveredAt: order.deliveredAt
       }));
@@ -405,7 +406,7 @@ class OrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
+          'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -460,8 +461,9 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceledAt,
+        cancelledAt: order.cancelledAt,
         confirmedAt: order.confirmedAt,
+        processingAt: order.processingAt,
         shippedAt: order.shippedAt,
         deliveredAt: order.deliveredAt
       };
@@ -538,7 +540,7 @@ class OrderController {
   /**
    * PUT /api/orders/:orderId/cancel - Annuler une commande (FonctionnalitéMoyenne#1782)
    * Sous-tâche 1: Implémenter PUT /orders/:id/cancel : vérifier que status=pending avant d'autoriser
-   * Sous-tâche 2: Créer un champ canceledAt et passer status à 'canceled'
+   * Sous-tâche 2: Créer un champ cancelledAt et passer status à 'cancelled'
    * 
    * @param {Object} req - Requête Express
    * @param {Object} res - Réponse Express
@@ -593,7 +595,7 @@ class OrderController {
         });
       }
 
-      // Sous-tâche 2: Passer status à 'canceled' (automatiquement avec canceledAt via updateStatus)
+      // Sous-tâche 2: Passer status à 'cancelled' (automatiquement avec cancelledAt via updateStatus)
       try {
         // Ajouter la raison d'annulation aux notes si fournie
         if (reason) {
@@ -601,8 +603,8 @@ class OrderController {
           order.notes = order.notes ? `${order.notes}\n${cancelReason}` : cancelReason;
         }
 
-        // Utiliser updateStatus qui se charge de la validation et de la mise à jour de canceledAt
-        await order.updateStatus('canceled');
+        // Utiliser updateStatus qui se charge de la validation et de la mise à jour de cancelledAt
+        await order.updateStatus('cancelled');
 
         console.log(`✅ Commande ${orderId} annulée avec succès`);
 
@@ -613,7 +615,7 @@ class OrderController {
             orderId: order.orderId,
             previousStatus: 'pending',
             currentStatus: order.status,
-            canceledAt: order.canceledAt,
+            cancelledAt: order.cancelledAt,
             reason: reason || null,
             updatedAt: order.updated_at
           }
@@ -663,7 +665,7 @@ class OrderController {
         },
         attributes: [
           'orderId', 'status', 'trackingNumber',
-          'created_at', 'updated_at', 'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
+          'created_at', 'updated_at', 'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -680,30 +682,32 @@ class OrderController {
         status: order.status,
         createdAt: order.created_at,
         confirmedAt: order.confirmedAt || null,
+        processingAt: order.processingAt || null,
         shippedAt: order.shippedAt || null,
         deliveredAt: order.deliveredAt || null,
-        canceledAt: order.canceledAt || null, // Ajout du support d'annulation
+        cancelledAt: order.cancelledAt || null, // Ajout du support d'annulation
         trackingNumber: order.trackingNumber || null
       };
 
       // Calculer les informations de progression
       const progressInfo = {
-        isCompleted: order.status === 'delivered' || order.status === 'canceled',
-        isCanceled: order.status === 'canceled',
+        isCompleted: order.status === 'delivered' || order.status === 'cancelled',
+        isCancelled: order.status === 'cancelled',
         currentStep: order.status,
         timeline: [
           { step: 'pending', completed: true, date: order.created_at },
           { step: 'confirmed', completed: !!order.confirmedAt, date: order.confirmedAt },
+          { step: 'processing', completed: !!order.processingAt, date: order.processingAt },
           { step: 'shipped', completed: !!order.shippedAt, date: order.shippedAt },
           { step: 'delivered', completed: !!order.deliveredAt, date: order.deliveredAt }
         ]
       };
 
       // Si annulée, ajuster la timeline
-      if (order.status === 'canceled') {
+      if (order.status === 'cancelled') {
         progressInfo.timeline = [
           { step: 'pending', completed: true, date: order.created_at },
-          { step: 'canceled', completed: true, date: order.canceledAt }
+          { step: 'cancelled', completed: true, date: order.cancelledAt }
         ];
       }
 
@@ -741,11 +745,12 @@ class OrderController {
           statuses: Object.values(Order.STATUS),
           transitions: Order.VALID_TRANSITIONS,
           statusDescriptions: {
-            [Order.STATUS.PENDING]: 'En attente de confirmation',
-            [Order.STATUS.CONFIRMED]: 'Confirmée et en préparation',
+            [Order.STATUS.PENDING]: 'En attente de paiement',
+            [Order.STATUS.CONFIRMED]: 'Confirmée',
+            [Order.STATUS.PROCESSING]: 'En préparation',
             [Order.STATUS.SHIPPED]: 'Expédiée',
             [Order.STATUS.DELIVERED]: 'Livrée',
-            [Order.STATUS.CANCELED]: 'Annulée' // FonctionnalitéMoyenne#1782
+            [Order.STATUS.CANCELLED]: 'Annulée' // FonctionnalitéMoyenne#1782
           }
         }
       });

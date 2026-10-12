@@ -77,9 +77,10 @@ function mapOrderStatus(status) {
   const map = {
     pending: "En attente de paiement",
     confirmed: "Confirmée",
+    processing: "En préparation",
     shipped: "En transit",
     delivered: "Livré",
-    canceled: "Annulé",
+    cancelled: "Annulé",
   };
   return map[status?.toLowerCase()] || status || "En attente de paiement";
 }
@@ -605,7 +606,7 @@ const useCartStore = create((set, get) => ({
       // Met à jour la liste déjà chargée (page Mes commandes)
       set((state) => ({
         orders: (state.orders || []).map((o) =>
-          o.id === orderId ? { ...o, _status: "canceled", status: mapOrderStatus("canceled") } : o
+          o.id === orderId ? { ...o, _status: "cancelled", status: mapOrderStatus("cancelled") } : o
         ),
       }));
       return { ok: true, message: json?.message || "Commande annulée." };

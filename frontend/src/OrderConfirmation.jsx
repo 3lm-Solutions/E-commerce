@@ -6,7 +6,8 @@ import useCartStore from './store/cartStore';
 // Mêmes couleurs que Orders.jsx / OrderDetail.jsx (page revisitée après annulation, etc.)
 const STATUS_COLORS = {
     pending: 'bg-amber-100 text-amber-700 border-amber-200',
-    canceled: 'bg-red-100 text-red-700 border-red-200',
+    processing: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    cancelled: 'bg-red-100 text-red-700 border-red-200',
     delivered: 'bg-green-100 text-green-700 border-green-200',
 };
 

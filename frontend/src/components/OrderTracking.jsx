@@ -3,9 +3,10 @@ import { Check, X } from "lucide-react";
 const STEP_LABELS = {
     pending: "Commandée",
     confirmed: "Confirmée",
+    processing: "En préparation",
     shipped: "Expédiée",
     delivered: "Livrée",
-    canceled: "Annulée",
+    cancelled: "Annulée",
 };
 
 function formatDate(date) {
@@ -36,13 +37,13 @@ function OrderTracking({ tracking }) {
 
             <ol className="flex">
                 {timeline.map((step, index) => {
-                    const isCanceled = step.step === "canceled";
+                    const isCancelled = step.step === "cancelled";
                     const isLast = index === timeline.length - 1;
                     // La ligne vers l'étape suivante est colorée si l'étape suivante est atteinte
                     const nextDone = !isLast && timeline[index + 1].completed;
-                    const nextCanceled = !isLast && timeline[index + 1].step === "canceled";
+                    const nextCanceled = !isLast && timeline[index + 1].step === "cancelled";
 
-                    const dotClass = isCanceled
+                    const dotClass = isCancelled
                         ? "bg-red-500 border-red-500 text-white"
                         : step.completed
                             ? "bg-indigo-600 border-indigo-600 text-white"
@@ -58,10 +59,10 @@ function OrderTracking({ tracking }) {
                                 />
                             )}
                             <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center ${dotClass}`}>
-                                {isCanceled ? <X size={16} /> : step.completed ? <Check size={16} /> : null}
+                                {isCancelled ? <X size={16} /> : step.completed ? <Check size={16} /> : null}
                             </div>
                             <p className={`mt-3 text-sm font-semibold ${
-                                isCanceled ? "text-red-600" : step.completed ? "text-gray-900" : "text-gray-400"
+                                isCancelled ? "text-red-600" : step.completed ? "text-gray-900" : "text-gray-400"
                             }`}>
                                 {STEP_LABELS[step.step] || step.step}
                             </p>

@@ -144,7 +144,7 @@ router.get('/orders/:orderId', AdminOrderController.getOrderByIdAdmin);
  * @desc    Changer le statut de N'IMPORTE QUELLE commande (FonctionnalitéHaute#427)
  * @access  Admin only
  * @params  { orderId: string }
- * @body    { newStatus: "pending"|"confirmed"|"shipped"|"delivered"|"canceled" }
+ * @body    { newStatus: "pending"|"confirmed"|"processing"|"shipped"|"delivered"|"cancelled" }
  * @returns { success, data: { orderId, previousStatus, currentStatus, availableTransitions, ... } }
  */
 router.put('/orders/:orderId/status', AdminOrderController.updateOrderStatusAdmin);

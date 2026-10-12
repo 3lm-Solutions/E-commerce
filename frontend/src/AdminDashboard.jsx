@@ -138,18 +138,20 @@ const [topProducts, setTopProducts] = useState([]);
   const STATUS_LABELS = {
     pending: 'En attente de paiement',
     confirmed: 'Confirmée',
+    processing: 'En préparation',
     shipped: 'Expédiée',
     delivered: 'Livrée',
-    canceled: 'Annulée'
+    cancelled: 'Annulée'
   };
 
   // Couleurs des badges selon le statut
   const STATUS_BADGES = {
     pending: 'bg-gray-100 text-gray-700',
     confirmed: 'bg-blue-100 text-blue-700',
+    processing: 'bg-indigo-100 text-indigo-700',
     shipped: 'bg-orange-100 text-orange-700',
     delivered: 'bg-green-100 text-green-700',
-    canceled: 'bg-red-100 text-red-700'
+    cancelled: 'bg-red-100 text-red-700'
   };
 
   // Mapping des commandes backend vers le format attendu par le dashboard
@@ -1347,9 +1349,10 @@ loadAdminCategories();
                               <option value="">Tous les statuts</option>
                               <option value="pending">En attente de paiement</option>
                               <option value="confirmed">Confirmée</option>
+                              <option value="processing">En préparation</option>
                               <option value="shipped">Expédiée</option>
                               <option value="delivered">Livrée</option>
-                              <option value="canceled">Annulée</option>
+                              <option value="cancelled">Annulée</option>
                           </select>
                       </div>
 
@@ -2431,9 +2434,10 @@ confirmDisabled={
                           <option value="">Tous les statuts</option>
                           <option value="pending">En attente de paiement</option>
                           <option value="confirmed">Confirmée</option>
+                          <option value="processing">En préparation</option>
                           <option value="shipped">Expédiée</option>
                           <option value="delivered">Livrée</option>
-                          <option value="canceled">Annulée</option>
+                          <option value="cancelled">Annulée</option>
                         </select>
                       </div>
                     </div>

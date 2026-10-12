@@ -17,6 +17,7 @@ function Orders() {
         switch(status) {
             case 'Livré': return 'bg-green-100 text-green-700 border-green-200';
             case 'En attente de paiement': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'En préparation': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
             case 'En transit': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'Annulé': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';

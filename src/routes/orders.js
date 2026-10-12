@@ -55,7 +55,7 @@ router.post('/', verifyToken, OrderController.createOrder);
  * @access  Private (JWT required)
  * @headers Authorization: Bearer <accessToken>
  * @query   {
- *            status?: "pending"|"confirmed"|"shipped"|"delivered",
+ *            status?: "pending"|"confirmed"|"processing"|"shipped"|"delivered",
  *            limit?: number (default: 50),
  *            offset?: number (default: 0),
  *            page?: number (default: 1)
@@ -168,8 +168,8 @@ router.get('/:orderId/transitions', verifyToken, OrderController.getOrderTransit
  *            data: {
  *              orderId: string,
  *              previousStatus: string,
- *              currentStatus: "canceled",
- *              canceledAt: datetime,
+ *              currentStatus: "cancelled",
+ *              cancelledAt: datetime,
  *              reason?: string,
  *              updatedAt: datetime
  *            }
@@ -177,11 +177,11 @@ router.get('/:orderId/transitions', verifyToken, OrderController.getOrderTransit
  * 
  * Spécification FonctionnalitéMoyenne#1782:
  * - Sous-tâche 1: Vérifier que status=pending avant d'autoriser (rejette sinon avec 400)
- * - Sous-tâche 2: Créer champ canceledAt et passer status à 'canceled'
+ * - Sous-tâche 2: Créer champ cancelledAt et passer status à 'cancelled'
  * 
  * Comportement:
  * - Seules les commandes en statut "pending" peuvent être annulées
- * - Met automatiquement à jour canceledAt avec la date/heure actuelle
+ * - Met automatiquement à jour cancelledAt avec la date/heure actuelle
  * - Ajoute une note d'annulation avec la date et raison (si fournie)
  * - Retourne erreur 400 si tentative d'annulation sur statut != pending
  * 
@@ -208,11 +208,11 @@ router.put('/:orderId/cancel', verifyToken, OrderController.cancelOrder);
  *              confirmedAt?: datetime,
  *              shippedAt?: datetime,
  *              deliveredAt?: datetime,
- *              canceledAt?: datetime,
+ *              cancelledAt?: datetime,
  *              trackingNumber?: string,
  *              progress: {
  *                isCompleted: boolean,
- *                isCanceled: boolean,
+ *                isCancelled: boolean,
  *                currentStep: string,
  *                timeline: array
  *              }
@@ -220,13 +220,13 @@ router.put('/:orderId/cancel', verifyToken, OrderController.cancelOrder);
  *          }
  * 
  * Spécification FonctionnalitéMoyenne#1782:
- * - Sous-tâche 3: Retourner état actuel simplifié (pending/confirmed/shipped/delivered/canceled)
- * - Format: { status, createdAt, confirmedAt, shippedAt, deliveredAt, canceledAt }
+ * - Sous-tâche 3: Retourner état actuel simplifié (pending/confirmed/processing/shipped/delivered/cancelled)
+ * - Format: { status, createdAt, confirmedAt, processingAt, shippedAt, deliveredAt, cancelledAt }
  * 
  * Fonctionnalités Optionnelles S6:
  * - Timeline visuelle avec progression étape par étape
  * - Informations de statut enrichies
- * - Support du statut "canceled" avec canceledAt
+ * - Support du statut "cancelled" avec cancelledAt
  * 
  * Utilisation:
  * - Interface de suivi client simplifié
@@ -241,7 +241,7 @@ router.get('/:orderId/tracking', verifyToken, OrderController.getOrderTracking);
  * @access  Admin only (JWT + verifyAdmin) - action de gestion réservée aux admins
  * @headers Authorization: Bearer <accessToken>
  * @params  { orderId: string }
- * @body    { newStatus: "pending"|"confirmed"|"shipped"|"delivered"|"canceled" }
+ * @body    { newStatus: "pending"|"confirmed"|"processing"|"shipped"|"delivered"|"cancelled" }
  * @returns {
  *            success: boolean,
  *            message: string,
@@ -256,17 +256,18 @@ router.get('/:orderId/tracking', verifyToken, OrderController.getOrderTracking);
  *          }
  * 
  * Machine à États Mise à Jour (FonctionnalitéMoyenne#1782):
- * - pending → confirmed | canceled
- * - confirmed → shipped
+ * - pending → confirmed | cancelled
+ * - confirmed → processing
+ * - processing → shipped
  * - shipped → delivered
  * - delivered → [] (état final)
- * - canceled → [] (état final)
+ * - cancelled → [] (état final)
  * 
  * Comportement:
  * - Valide que la transition est autorisée selon la machine à états
  * - Rejette avec erreur 400 les transitions invalides
  * - Génère automatiquement un trackingNumber si passage à "shipped"
- * - Met à jour les dates de transition (confirmedAt, shippedAt, deliveredAt, canceledAt)
+ * - Met à jour les dates de transition (confirmedAt, processingAt, shippedAt, deliveredAt, cancelledAt)
  * - Ajoute des notes automatiques pour certains statuts
  * 
 * Erreurs Possibles:

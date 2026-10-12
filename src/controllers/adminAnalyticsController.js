@@ -11,9 +11,9 @@ const { Op } = require('sequelize');
  * - GET /admin/dashboard/recent-orders : 10 dernières commandes (FonctionnalitéHaute#429)
  *
  * Décision métier :
- * Les commandes au statut "canceled" sont EXCLUES du calcul du chiffre d'affaires
+ * Les commandes au statut "cancelled" sont EXCLUES du calcul du chiffre d'affaires
  * et du top produits, car elles ne représentent pas une vente effective.
- * Tous les autres statuts (pending, confirmed, shipped, delivered) sont inclus.
+ * Tous les autres statuts (pending, confirmed, processing, shipped, delivered) sont inclus.
  *
  * Note d'implémentation : les items de commande sont stockés en JSONB dans Order.items
  * (structure : { productId, name, price, quantity, total } — voir orderController.createOrder).
@@ -32,7 +32,7 @@ class AdminAnalyticsController {
    *  - 12m : 12 derniers mois, granularité mois
    *
    * Agrège SUM(totalAmount) et COUNT(*) par jour (ou par mois) sur les commandes
-   * dont status != 'canceled' et createdAt dans la plage demandée.
+   * dont status != 'cancelled' et createdAt dans la plage demandée.
    * Les jours/mois sans commande sont inclus dans la série avec revenue: 0, ordersCount: 0
    * afin de produire une série continue pour le graphique.
    *
@@ -70,7 +70,7 @@ class AdminAnalyticsController {
       // Récupérer les commandes non annulées dans la plage de dates
       const orders = await Order.findAll({
         where: {
-          status: { [Op.ne]: 'canceled' }, // Décision métier : exclure les commandes annulées
+          status: { [Op.ne]: 'cancelled' }, // Décision métier : exclure les commandes annulées
           created_at: { [Op.gte]: startDate }
         },
         attributes: ['totalAmount', 'created_at']
@@ -162,7 +162,7 @@ class AdminAnalyticsController {
       // Récupérer uniquement le champ items des commandes non annulées
       const orders = await Order.findAll({
         where: {
-          status: { [Op.ne]: 'canceled' } // Décision métier : exclure les commandes annulées
+          status: { [Op.ne]: 'cancelled' } // Décision métier : exclure les commandes annulées
         },
         attributes: ['items']
       });
@@ -235,7 +235,7 @@ res.status(200).json({
    * Factorise la logique déjà utilisée dans getRevenueAnalytics pour éviter toute
    * duplication lors du calcul du KPI "Revenus totaux" du tableau de bord.
    *
-   * Décision métier : les commandes au statut "canceled" sont EXCLUES du calcul.
+   * Décision métier : les commandes au statut "cancelled" sont EXCLUES du calcul.
    *
    * @returns {Promise<number>} Somme des totalAmount des commandes non annulées
    */
@@ -243,7 +243,7 @@ res.status(200).json({
     // Récupérer uniquement le champ totalAmount des commandes non annulées
     const orders = await Order.findAll({
       where: {
-        status: { [Op.ne]: 'canceled' } // Décision métier : exclure les commandes annulées
+        status: { [Op.ne]: 'cancelled' } // Décision métier : exclure les commandes annulées
       },
       attributes: ['totalAmount']
     });
@@ -372,7 +372,7 @@ res.status(200).json({
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'confirmedAt', 'shippedAt', 'deliveredAt', 'canceledAt'
+          'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
         ]
       });
 

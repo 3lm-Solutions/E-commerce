@@ -82,15 +82,15 @@ describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => 
       expect(response.body.data).toMatchObject({
         orderId: testOrder.orderId,
         previousStatus: 'pending',
-        currentStatus: 'canceled',
+        currentStatus: 'cancelled',
         reason: 'Changed my mind'
       });
-      expect(response.body.data.canceledAt).toBeTruthy();
+      expect(response.body.data.cancelledAt).toBeTruthy();
 
       // Verify database state
       const updatedOrder = await Order.findOne({ where: { orderId: testOrder.orderId } });
-      expect(updatedOrder.status).toBe('canceled');
-      expect(updatedOrder.canceledAt).toBeTruthy();
+      expect(updatedOrder.status).toBe('cancelled');
+      expect(updatedOrder.cancelledAt).toBeTruthy();
       expect(updatedOrder.notes).toContain('Raison d\'annulation: Changed my mind');
     });
 
@@ -154,19 +154,19 @@ describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => 
         confirmedAt: null,
         shippedAt: null,
         deliveredAt: null,
-        canceledAt: null
+        cancelledAt: null
       });
       expect(response.body.data.createdAt).toBeTruthy();
       expect(response.body.data.progress).toMatchObject({
         isCompleted: false,
-        isCanceled: false,
+        isCancelled: false,
         currentStep: 'pending'
       });
     });
 
-    test('✅ Should return tracking info for canceled order', async () => {
+    test('✅ Should return tracking info for cancelled order', async () => {
       // Cancel the order first
-      await testOrder.updateStatus('canceled');
+      await testOrder.updateStatus('cancelled');
 
       const response = await request(app)
         .get(`/api/orders/${testOrder.orderId}/tracking`)
@@ -175,16 +175,16 @@ describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => 
       expect(response.status).toBe(200);
       expect(response.body.data).toMatchObject({
         orderId: testOrder.orderId,
-        status: 'canceled',
+        status: 'cancelled',
         confirmedAt: null,
         shippedAt: null,
         deliveredAt: null
       });
-      expect(response.body.data.canceledAt).toBeTruthy();
+      expect(response.body.data.cancelledAt).toBeTruthy();
       expect(response.body.data.progress).toMatchObject({
         isCompleted: true,
-        isCanceled: true,
-        currentStep: 'canceled'
+        isCancelled: true,
+        currentStep: 'cancelled'
       });
     });
 
@@ -258,18 +258,18 @@ describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => 
     test('✅ Should allow cancellation only from pending', async () => {
       // Should work from pending
       expect(testOrder.isCancelable()).toBe(true);
-      await testOrder.updateStatus('canceled');
-      expect(testOrder.status).toBe('canceled');
+      await testOrder.updateStatus('cancelled');
+      expect(testOrder.status).toBe('cancelled');
 
       // Reset for next test
       testOrder.status = 'confirmed';
       expect(testOrder.isCancelable()).toBe(false);
     });
 
-    test('✅ Should mark canceled and delivered as completed', async () => {
+    test('✅ Should mark cancelled and delivered as completed', async () => {
       expect(testOrder.isCompleted()).toBe(false);
 
-      await testOrder.updateStatus('canceled');
+      await testOrder.updateStatus('cancelled');
       expect(testOrder.isCompleted()).toBe(true);
 
       // Test with delivered status
@@ -293,5 +293,5 @@ describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => 
 console.log('🧪 Order Cancellation and Tracking Tests - FonctionnalitéMoyenne#1782');
 console.log('📋 Tests cover all 3 sub-tasks:');
 console.log('  ✅ Sous-tâche 1: PUT /orders/:id/cancel validation');
-console.log('  ✅ Sous-tâche 2: canceledAt field and canceled status');
+console.log('  ✅ Sous-tâche 2: cancelledAt field and cancelled status');
 console.log('  ✅ Sous-tâche 3: GET /orders/:id/tracking endpoint');

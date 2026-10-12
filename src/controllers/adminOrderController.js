@@ -14,7 +14,7 @@ const { Op } = require('sequelize');
  * AUCUN filtre userId : un admin doit pouvoir consulter et gérer toutes les
  * commandes de tous les clients.
  *
- * La machine à états (pending → confirmed → shipped → delivered, annulation)
+ * La machine à états (pending → confirmed → processing → shipped → delivered, annulation)
  * est réutilisée directement depuis le modèle Order (updateStatus()).
  */
 
@@ -28,7 +28,7 @@ class AdminOrderController {
    * @param {Object} res - Réponse Express
    *
    * Query params optionnels :
-   * - status       : filtre exact sur le statut (pending|confirmed|shipped|delivered|canceled)
+   * - status       : filtre exact sur le statut (pending|confirmed|processing|shipped|delivered|cancelled)
    * - startDate    : filtre sur created_at >= startDate (YYYY-MM-DD)
    * - endDate      : filtre sur created_at <= endDate (YYYY-MM-DD)
    * - userId       : filtre par utilisateur (UUID)
@@ -112,7 +112,7 @@ class AdminOrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'confirmedAt', 'shippedAt', 'deliveredAt', 'canceledAt'
+          'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
         ]
       });
 
@@ -183,7 +183,7 @@ class AdminOrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'confirmedAt', 'shippedAt', 'deliveredAt', 'canceledAt'
+          'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
         ]
       });
 
@@ -222,7 +222,7 @@ class AdminOrderController {
    *
    * @param {Object} req - Requête Express
    * @param {Object} res - Réponse Express
-   * @body { newStatus: "pending"|"confirmed"|"shipped"|"delivered"|"canceled" }
+   * @body { newStatus: "pending"|"confirmed"|"processing"|"shipped"|"delivered"|"cancelled" }
    */
   static async updateOrderStatusAdmin(req, res) {
     try {
@@ -347,10 +347,12 @@ class AdminOrderController {
       // Dates complètes
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      confirmedAt: order.confirmed_at,
-      shippedAt: order.shipped_at,
-      deliveredAt: order.delivered_at,
-      canceledAt: order.canceled_at
+      // Attributs du modèle en camelCase (order.confirmed_at valait toujours undefined)
+      confirmedAt: order.confirmedAt,
+      processingAt: order.processingAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      cancelledAt: order.cancelledAt
     };
   }
 }
