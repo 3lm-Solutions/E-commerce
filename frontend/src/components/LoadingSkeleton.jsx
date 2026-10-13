@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useState } from 'react';
 
 /**
  * Composants de skeleton loading pour améliorer l'UX pendant les chargements
