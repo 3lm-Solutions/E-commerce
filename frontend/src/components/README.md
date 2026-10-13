@@ -1,8 +1,8 @@
-# 🎨 Guide des composants UX/UI
+# Guide des composants UX/UI
 
 Cette documentation présente tous les composants développés pour l'Issue #8 "Expérience Utilisateur et Accessibilité".
 
-## 🚀 Installation et usage
+## Installation et usage
 
 ```bash
 # Tous les composants sont importables depuis le dossier components
@@ -12,9 +12,9 @@ import { LoadingButton, Toast, AccessibleModal } from './components';
 import LoadingButton from './components/LoadingButton';
 ```
 
-## 📚 Composants disponibles
+## Composants disponibles
 
-### 🔘 LoadingButton
+### LoadingButton
 
 Bouton avec état de chargement intégré.
 
@@ -38,7 +38,7 @@ import { LoadingButton } from './components';
 - `size` (string): 'sm', 'md', 'lg'
 - `loadingText` (string): Texte pendant le chargement
 
-### 🔔 ToastProvider & useToast
+### ToastProvider & useToast
 
 Système de notifications global.
 
@@ -65,7 +65,7 @@ const MyComponent = () => {
 };
 ```
 
-### 🪟 AccessibleModal
+### AccessibleModal
 
 Modal accessible avec navigation clavier et focus trap.
 
@@ -85,7 +85,7 @@ import { AccessibleModal } from './components';
 </AccessibleModal>
 ```
 
-### 🔍 SearchInput
+### SearchInput
 
 Recherche avec suggestions, historique et debouncing.
 
@@ -103,7 +103,7 @@ import { SearchInput } from './components';
 />
 ```
 
-### 🖼️ LazyImage
+### LazyImage
 
 Images avec lazy loading et responsive.
 
@@ -126,7 +126,7 @@ import { LazyImage, ResponsiveImage } from './components';
 />
 ```
 
-### 📝 AccessibleForm
+### AccessibleForm
 
 Formulaires accessibles avec validation.
 
@@ -161,7 +161,7 @@ import { AccessibleForm, AccessibleInput, FieldGroup } from './components';
 </AccessibleForm>
 ```
 
-### 🎭 AnimatedContainer
+### AnimatedContainer
 
 Animations fluides et transitions.
 
@@ -196,7 +196,7 @@ import { AnimatedContainer, StaggeredContainer } from './components';
 - `scaleIn`: Zoom d'apparition
 - `bounceIn`: Effet rebond
 
-### ⚠️ ErrorBoundary
+### ErrorBoundary
 
 Gestion d'erreurs globale avec interface de récupération.
 
@@ -222,7 +222,7 @@ import { ErrorBoundary } from './components';
 </ErrorBoundary>
 ```
 
-### 💫 ActionFeedback
+### ActionFeedback
 
 Feedback visuel pour les actions utilisateur.
 
@@ -254,7 +254,7 @@ const ProductCard = () => {
 };
 ```
 
-### 💀 LoadingSkeleton
+### LoadingSkeleton
 
 Placeholders pendant les chargements.
 
@@ -276,7 +276,7 @@ import {
 {isLoading ? <CartItemSkeleton /> : <CartItem item={item} />}
 ```
 
-## 🎨 Classes CSS utilitaires
+## Classes CSS utilitaires
 
 ### Animations
 ```css
@@ -311,7 +311,7 @@ import {
 .typing-indicator  /* Indicateur de saisie */
 ```
 
-## 🔧 Hooks utilitaires
+## Hooks utilitaires
 
 ### useSearchDebounce
 ```jsx
@@ -345,32 +345,32 @@ const images = ['/img1.jpg', '/img2.jpg', '/img3.jpg'];
 const { loadedImages, isLoading, preloadImages } = useImagePreload(images);
 ```
 
-## 🎯 Bonnes pratiques
+## Bonnes pratiques
 
-### ♿ Accessibilité
+### Accessibilité
 - Toujours fournir des `alt` descriptifs pour les images
 - Utiliser `aria-label` pour les boutons d'action
 - Tester avec lecteurs d'écran (NVDA, JAWS)
 - Navigation clavier sur tous les éléments interactifs
 
-### 📱 Responsive
+### Responsive
 - Utiliser les classes CSS prédéfinies
 - Tester sur tous les breakpoints (320px à 1920px+)
 - Cibles tactiles minimum 44px
 
-### ⚡ Performance
+### Performance
 - Utiliser `LazyImage` pour toutes les images
 - Implémenter le debouncing pour les recherches
 - Préférer les animations CSS aux animations JS
 
-### 🎨 Cohérence visuelle
+### Cohérence visuelle
 - Utiliser les variants prédéfinis des composants
 - Respecter les espacements du design system
 - Animations subtiles (max 500ms)
 
-## 🚨 Erreurs communes
+## Erreurs communes
 
-❌ **À éviter:**
+**À éviter:**
 ```jsx
 // Pas de lazy loading
 <img src="large-image.jpg" />
@@ -382,7 +382,7 @@ const { loadedImages, isLoading, preloadImages } = useImagePreload(images);
 <div className="modal" onClick={close}>
 ```
 
-✅ **Correct:**
+**Correct:**
 ```jsx
 // Avec lazy loading
 <LazyImage src="large-image.jpg" alt="Description" />
@@ -396,7 +396,7 @@ const { loadedImages, isLoading, preloadImages } = useImagePreload(images);
 
 ---
 
-## 📞 Support
+## Support
 
 Pour toute question sur l'utilisation de ces composants :
 - Consulter les PropTypes dans le code
