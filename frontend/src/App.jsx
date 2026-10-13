@@ -22,6 +22,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/ToastProvider';
 import AnimatedContainer from './components/AnimatedContainer';
 
+// Page de test des composants UX/UI (développement uniquement)
+import TestUXComponents from './test-ux-components';
+
 // Styles responsive
 import './styles/responsive.css';
 
@@ -59,6 +62,11 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+
+                {/* Route de test pour les composants UX/UI (développement) */}
+                {process.env.NODE_ENV === 'development' && (
+                  <Route path="/test-ux" element={<TestUXComponents />} />
+                )}
 
                 {/* Routes protégées avec animation */}
                 <Route path="/cart" element={
