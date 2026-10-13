@@ -123,7 +123,7 @@ const TestUXComponents = () => {
       {/* En-tête */}
       <AnimatedContainer animation="fadeIn">
         <div className="text-center py-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl text-white">
-          <h1 className="text-4xl font-bold mb-4">🧪 Test des Composants UX/UI</h1>
+          <h1 className="text-4xl font-bold mb-4">Test des Composants UX/UI</h1>
           <p className="text-xl opacity-90">Issue #8: Expérience Utilisateur et Accessibilité</p>
         </div>
       </AnimatedContainer>
@@ -131,7 +131,7 @@ const TestUXComponents = () => {
       {/* Section Boutons et Actions */}
       <AnimatedContainer animation="slideUp" delay={100}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">🔘 Boutons et Actions</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Boutons et Actions</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <LoadingButton
@@ -177,7 +177,7 @@ const TestUXComponents = () => {
       {/* Section Recherche */}
       <AnimatedContainer animation="slideUp" delay={200}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">🔍 Recherche</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Recherche</h2>
           
           <SearchInput
             placeholder="Rechercher un produit (iPhone, Samsung, etc.)"
@@ -203,7 +203,7 @@ const TestUXComponents = () => {
       {/* Section Formulaire */}
       <AnimatedContainer animation="slideUp" delay={300}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">📝 Formulaire Accessible</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Formulaire Accessible</h2>
           
           <AccessibleForm
             onSubmit={handleFormSubmit}
@@ -254,7 +254,7 @@ const TestUXComponents = () => {
       {/* Section Images */}
       <AnimatedContainer animation="slideUp" delay={400}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">🖼️ Images Responsives</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Images Responsives</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -281,7 +281,7 @@ const TestUXComponents = () => {
       {/* Section Animations */}
       <AnimatedContainer animation="slideUp" delay={500}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">🎭 Animations</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Animations</h2>
           
           <StaggeredContainer staggerDelay={150} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {['fadeIn', 'slideUp', 'scaleIn'].map((animation, index) => (
@@ -290,7 +290,7 @@ const TestUXComponents = () => {
                 animation={animation}
                 className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl text-center"
               >
-                <div className="text-2xl mb-2">✨</div>
+                <div className="text-2xl mb-2">Animation</div>
                 <h3 className="font-medium">{animation}</h3>
                 <p className="text-sm text-gray-600 mt-1">Animation #{index + 1}</p>
               </AnimatedContainer>
@@ -302,7 +302,7 @@ const TestUXComponents = () => {
       {/* Section Loading States */}
       <AnimatedContainer animation="slideUp" delay={600}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">💀 États de Chargement</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">États de Chargement</h2>
           
           <div className="space-y-6">
             <div>
@@ -324,7 +324,7 @@ const TestUXComponents = () => {
       {/* Section Gestion d'Erreurs */}
       <AnimatedContainer animation="slideUp" delay={700}>
         <section className="bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900">⚠️ Gestion d'Erreurs</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Gestion d'Erreurs</h2>
           
           <ErrorMessage
             title="Erreur de test"
@@ -380,7 +380,7 @@ const TestUXComponents = () => {
       <AnimatedContainer animation="fadeIn" delay={800}>
         <div className="text-center py-8 text-gray-500">
           <p className="text-sm">
-            🎉 Tous les composants UX/UI de l'Issue #8 sont fonctionnels !
+            Tous les composants UX/UI de l'Issue #8 sont fonctionnels !
           </p>
           <p className="text-xs mt-2">
             Développé par l'équipe 3LM-Solutions Engineering Department
