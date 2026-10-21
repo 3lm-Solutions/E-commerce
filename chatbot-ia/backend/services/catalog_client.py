@@ -41,11 +41,25 @@ FALLBACK_CATALOG_TEXT = (
 )
 
 
-def get_catalogue_text() -> str:
-    """
-    Récupère le texte du catalogue produits depuis le backend Node.js.
+# Texte de repli si la politique de livraison et de retour est injoignable
+FALLBACK_POLICY_TEXT = (
+    "La politique de livraison et de retour est temporairement indisponible. "
+    "Ne donne aucun frais, délai ou condition de retour : redirige le client "
+    "vers le support humain."
+)
 
-    @returns: le texte formaté du catalogue, ou un texte de repli si l'appel échoue
+
+def _non_empty(text, fallback):
+    return text if isinstance(text, str) and text.strip() else fallback
+
+
+def get_shop_context() -> dict:
+    """
+    Récupère le catalogue produits et la politique de livraison et de retour
+    depuis le backend Node.js (une seule requête).
+
+    @returns: { "catalogue": str, "policy": str }, avec des textes de repli si
+              l'appel échoue ou si un champ est vide
     """
     url = NODE_BACKEND_URL.rstrip("/") + CATALOG_ENDPOINT
 
@@ -54,10 +68,10 @@ def get_catalogue_text() -> str:
         response.raise_for_status()
 
         data = response.json()
-        catalogue = data.get("catalogue", "")
-
-        # Retourne le catalogue s'il est non vide, sinon le texte de repli
-        return catalogue if catalogue and catalogue.strip() else FALLBACK_CATALOG_TEXT
+        return {
+            "catalogue": _non_empty(data.get("catalogue"), FALLBACK_CATALOG_TEXT),
+            "policy": _non_empty(data.get("policy"), FALLBACK_POLICY_TEXT),
+        }
 
     except requests.exceptions.Timeout:
         print(f"⚠️ Timeout ({TIMEOUT_SECONDS}s) lors de l'appel à {url}")
@@ -68,5 +82,14 @@ def get_catalogue_text() -> str:
     except ValueError:
         print("⚠️ Réponse JSON invalide depuis le backend Node.js")
 
-    return FALLBACK_CATALOG_TEXT
+    return {"catalogue": FALLBACK_CATALOG_TEXT, "policy": FALLBACK_POLICY_TEXT}
+
+
+def get_catalogue_text() -> str:
+    """
+    Récupère le texte du catalogue produits depuis le backend Node.js.
+
+    @returns: le texte formaté du catalogue, ou un texte de repli si l'appel échoue
+    """
+    return get_shop_context()["catalogue"]
 

@@ -81,14 +81,18 @@ sys.modules["groq"] = fake_groq
 # Import de l'app (avec le fake SDK déjà en place)
 # ---------------------------------------------------------------------------
 import app  # noqa: E402
-from services.catalog_client import get_catalogue_text  # noqa: E402
+import config  # noqa: E402
 
-# Mock du catalogue (ne pas dépendre du backend Node.js)
-def fake_catalogue():
-    return "1. T-shirt Bleu - 199.99 MAD - Vêtements - Stock: 15\n2. iPhone 15 Pro - 1200.00 MAD - Électronique - Stock: 25"
+# Mock du catalogue et de la politique (ne pas dépendre du backend Node.js)
+FAKE_POLICY = "Livraison en France métropolitaine : 4,90 €, offerte dès 50 € d'achat."
 
-app.get_catalogue_text = fake_catalogue
-get_catalogue_text.original = fake_catalogue
+def fake_shop_context():
+    return {
+        "catalogue": "1. T-shirt Bleu - 19.99 € - Vêtements - Stock: 15\n2. iPhone 15 Pro - 1229.00 € - Électronique - Stock: 25",
+        "policy": FAKE_POLICY,
+    }
+
+app.get_shop_context = fake_shop_context
 
 client = app.app.test_client()
 
@@ -157,18 +161,22 @@ class FakeCompletionsCapture:
         captured["messages"] = kwargs.get("messages", [])
         return FakeStream()
 
-app.Groq = FakeClientCapture
+# app.py importe Groq depuis le module `groq` à chaque appel : on remplace le faux module
+fake_groq.Groq = FakeClientCapture
 
 client.post("/chat/message", json={"message": "Suivi", "conversation_history": [
     {"role": "user", "content": "Bonjour"},
     {"role": "assistant", "content": "Salut !"},
 ]})
-assert captured["model"] == "llama-3.3-70b-versatile", captured.get("model")
+assert captured["model"] == config.get_groq_model(), captured.get("model")
 msgs = captured["messages"]
 assert msgs[0]["role"] == "system", msgs
+assert FAKE_POLICY in msgs[0]["content"], "politique de livraison absente du prompt"
+assert "## Format" in msgs[0]["content"], "consignes de format absentes du prompt"
 assert msgs[1] == {"role": "user", "content": "Bonjour"}, msgs
 assert msgs[2] == {"role": "assistant", "content": "Salut !"}, msgs
-print("✅ TEST 5 OK : messages Groq construits (system + historique)")
+assert msgs[-1] == {"role": "user", "content": "Suivi"}, msgs
+print("✅ TEST 5 OK : messages Groq construits (system avec politique + historique + question)")
 
 print("\n🎉 TOUS LES TESTS SSE SONT PASSÉS")
 

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { getProductCatalogForChatbot } = require('../services/productCatalogService');
+const { describeShopPolicy } = require('../config/shopPolicy');
 
 const router = express.Router();
 
@@ -24,13 +25,15 @@ const router = express.Router();
  * @route   GET /api/internal/chatbot-catalog
  * @desc    Expose le catalogue produits déjà formaté pour le chatbot IA
  * @access  Interne (Flask chatbot → Node)
- * @returns { catalogue: string } Texte formaté du catalogue (français)
+ * @returns { catalogue: string, policy: string } Texte formaté du catalogue et
+ *          politique de livraison et de retour (français)
  */
 router.get('/chatbot-catalog', async (req, res) => {
   try {
     // Réutilise la logique déjà existante et testée (FonctionnalitéHaute #1670)
     const catalogue = await getProductCatalogForChatbot();
-    res.status(200).json({ catalogue });
+    // Même texte que GET /api/shop/policy : le chatbot ne peut pas contredire le site
+    res.status(200).json({ catalogue, policy: describeShopPolicy() });
   } catch (error) {
     console.error('Erreur lors de la génération du catalogue chatbot:', error);
     res.status(500).json({

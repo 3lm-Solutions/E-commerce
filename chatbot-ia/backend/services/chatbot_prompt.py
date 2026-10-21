@@ -21,7 +21,7 @@ MAX_HISTORY_MESSAGES = 10
 ORDER_STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]
 
 
-def build_system_prompt(catalogue_text):
+def build_system_prompt(catalogue_text, policy_text=None):
     """
     Construire le prompt système complet en français pour le chatbot.
 
@@ -34,9 +34,14 @@ def build_system_prompt(catalogue_text):
       - Le ton : courtois, concis, orienté conversion sans être insistant
 
     @param catalogue_text: texte du catalogue produits (formaté en français)
+    @param policy_text: politique de livraison et de retour (src/config/shopPolicy.js côté Node)
     @returns: le prompt système complet
     """
     catalogue_section = catalogue_text or "Le catalogue est actuellement indisponible."
+    policy_section = policy_text or (
+        "La politique de livraison et de retour est indisponible : ne donne aucun frais, "
+        "délai ou condition de retour et redirige le client vers le support humain."
+    )
 
     return "\n".join([
         "Tu es un assistant e-commerce sympathique et professionnel pour notre boutique en ligne.",
@@ -48,20 +53,36 @@ def build_system_prompt(catalogue_text):
         "",
         catalogue_section,
         "",
+        "## Livraison et retours",
+        "Politique officielle de la boutique. Utilise UNIQUEMENT ces informations pour les frais de port, "
+        "les délais et les retours :",
+        "",
+        policy_section,
+        "",
         "## Capacités",
         "- Recommander des produits adaptés aux besoins du client en t'appuyant uniquement sur le catalogue fourni.",
         "- Répondre aux questions sur les prix, les stocks et les catégories de produits.",
         "- Comparer des produits à partir de leur description et de leur note (avec le nombre d'avis : une note sur 1 avis pèse moins qu'une note sur 12 avis).",
         "- Aider au suivi de commande. Les statuts possibles d'une commande sont : " + ", ".join(ORDER_STATUSES) + ".",
         "- Expliquer brièvement ce que signifie chaque statut de commande si le client le demande.",
+        "- Expliquer les frais de livraison, les délais et la politique de retour, et calculer si un panier "
+        "donné a droit à la livraison gratuite.",
         "",
         "## Limites",
         "- Ne JAMAIS inventer un produit qui n'est pas présent dans le catalogue fourni.",
         "- Ne JAMAIS donner un prix ou un stock qui ne figure pas dans le catalogue fourni.",
         "- Ne JAMAIS ajouter de caractéristique technique absente de la description fournie.",
+        "- Ne JAMAIS inventer de frais, de délai, de zone de livraison ou de condition de retour "
+        "absents de la section « Livraison et retours » (par exemple la livraison à l'étranger) : "
+        "dis que tu n'as pas l'information et redirige vers le support humain.",
         "- Si une information n'est pas dans le catalogue ou concerne un sujet hors e-commerce, "
         "indique que tu ne peux pas y répondre et redirige le client vers le support humain.",
         "- Ne pas donner d'avis médical, juridique ou financier.",
+        "",
+        "## Format",
+        "- Réponses courtes : 3 à 5 phrases au maximum.",
+        "- Utilise une liste à puces pour comparer des produits ou en présenter plusieurs (un produit par puce, "
+        "avec son prix).",
         "",
         "## Ton",
         "- Sois courtois, concis et chaleureux.",
@@ -85,7 +106,7 @@ def _is_valid_history_message(message):
     )
 
 
-def build_messages_for_groq(conversation_history, catalogue_text):
+def build_messages_for_groq(conversation_history, catalogue_text, policy_text=None):
     """
     Construire la liste de messages au format Groq/OpenAI-compatible.
 
@@ -96,6 +117,7 @@ def build_messages_for_groq(conversation_history, catalogue_text):
 
     @param conversation_history: historique de conversation (array de { role, content })
     @param catalogue_text: texte du catalogue produits
+    @param policy_text: politique de livraison et de retour
     @returns: liste de messages [{ role, content }, ...]
     """
     history = conversation_history if isinstance(conversation_history, list) else []
@@ -107,7 +129,7 @@ def build_messages_for_groq(conversation_history, catalogue_text):
     trimmed_messages = valid_messages[-MAX_HISTORY_MESSAGES:]
 
     return [
-        {"role": "system", "content": build_system_prompt(catalogue_text)},
+        {"role": "system", "content": build_system_prompt(catalogue_text, policy_text)},
         *trimmed_messages,
     ]
 

@@ -51,10 +51,14 @@ const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delive
  *  - Le ton : courtois, concis, orienté conversion sans être insistant
  *
  * @param {string} catalogueText - Texte du catalogue produits (formaté en français)
+ * @param {string} [policyText] - Politique de livraison et de retour (src/config/shopPolicy.js)
  * @returns {string} Prompt système complet
  */
-function buildSystemPrompt(catalogueText) {
+function buildSystemPrompt(catalogueText, policyText) {
   const catalogueSection = catalogueText || 'Le catalogue est actuellement indisponible.';
+  const policySection = policyText ||
+    'La politique de livraison et de retour est indisponible : ne donne aucun frais, ' +
+    'délai ou condition de retour et redirige le client vers le support humain.';
 
   return [
     'Tu es un assistant e-commerce sympathique et professionnel pour notre boutique en ligne.',
@@ -66,6 +70,12 @@ function buildSystemPrompt(catalogueText) {
     '',
     catalogueSection,
     '',
+    '## Livraison et retours',
+    'Politique officielle de la boutique. Utilise UNIQUEMENT ces informations pour les frais de port, ' +
+      'les délais et les retours :',
+    '',
+    policySection,
+    '',
     '## Capacités',
     '- Recommander des produits adaptés aux besoins du client en t\'appuyant uniquement sur le catalogue fourni.',
     '- Répondre aux questions sur les prix, les stocks et les catégories de produits.',
@@ -73,14 +83,24 @@ function buildSystemPrompt(catalogueText) {
     '- Aider au suivi de commande. Les statuts possibles d\'une commande sont : ' +
       ORDER_STATUSES.join(', ') + '.',
     '- Expliquer brièvement ce que signifie chaque statut de commande si le client le demande.',
+    '- Expliquer les frais de livraison, les délais et la politique de retour, et calculer si un panier ' +
+      'donné a droit à la livraison gratuite.',
     '',
     '## Limites',
     '- Ne JAMAIS inventer un produit qui n\'est pas présent dans le catalogue fourni.',
     '- Ne JAMAIS donner un prix ou un stock qui ne figure pas dans le catalogue fourni.',
     '- Ne JAMAIS ajouter de caractéristique technique absente de la description fournie.',
+    '- Ne JAMAIS inventer de frais, de délai, de zone de livraison ou de condition de retour ' +
+      "absents de la section « Livraison et retours » (par exemple la livraison à l'étranger) : " +
+      "dis que tu n'as pas l'information et redirige vers le support humain.",
     '- Si une information n\'est pas dans le catalogue ou concerne un sujet hors e-commerce, ' +
       'indique que tu ne peux pas y répondre et redirige le client vers le support humain.',
     '- Ne pas donner d\'avis médical, juridique ou financier.',
+    '',
+    '## Format',
+    '- Réponses courtes : 3 à 5 phrases au maximum.',
+    '- Utilise une liste à puces pour comparer des produits ou en présenter plusieurs (un produit par puce, ' +
+      'avec son prix).',
     '',
     '## Ton',
     '- Sois courtois, concis et chaleureux.',
@@ -115,9 +135,10 @@ function isValidHistoryMessage(message) {
  *
  * @param {*} conversationHistory - Historique de conversation (array de { role, content })
  * @param {string} catalogueText - Texte du catalogue produits
+ * @param {string} [policyText] - Politique de livraison et de retour
  * @returns {{ system: string, messages: Array<{ role: string, content: string }> }}
  */
-function buildMessagesForClaude(conversationHistory, catalogueText) {
+function buildMessagesForClaude(conversationHistory, catalogueText, policyText) {
   // Valider que l'historique est bien un tableau, sinon retourner un tableau vide
   const history = Array.isArray(conversationHistory) ? conversationHistory : [];
 
@@ -128,7 +149,7 @@ function buildMessagesForClaude(conversationHistory, catalogueText) {
   const trimmedMessages = validMessages.slice(-MAX_HISTORY_MESSAGES);
 
   return {
-    system: buildSystemPrompt(catalogueText),
+    system: buildSystemPrompt(catalogueText, policyText),
     messages: trimmedMessages.map((message) => ({
       role: message.role,
       content: message.content

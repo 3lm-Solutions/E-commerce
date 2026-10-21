@@ -19,7 +19,8 @@ info:
 
     Changements 1.2.0 (non cassants) :
     - `GET /api/shop/policy` : politique de livraison et de retour ;
-    - frais de port `shippingCost` sur les commandes, inclus dans `totalAmount` (et `total` à la création).
+    - frais de port `shippingCost` sur les commandes, inclus dans `totalAmount` (et `total` à la création) ;
+    - `policy` dans `GET /api/internal/chatbot-catalog` (prompt du chatbot).
 servers:
   - url: http://localhost:3000
     description: Développement local
@@ -1426,13 +1427,14 @@ paths:
       summary: Catalogue formaté pour le chatbot (appel Flask → Node, réseau interne uniquement)
       responses:
         '200':
-          description: Catalogue texte
+          description: Catalogue et politique de livraison et de retour, en texte
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   catalogue: { type: string }
+                  policy: { type: string, description: Même texte que `text` dans GET /api/shop/policy }
 
 components:
   securitySchemes:

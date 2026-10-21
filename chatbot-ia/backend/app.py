@@ -53,7 +53,7 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 import config
-from services.catalog_client import get_catalogue_text
+from services.catalog_client import get_shop_context
 from services.chatbot_prompt import build_messages_for_groq
 from services.description_prompt import build_description_prompt
 from services.reviews_summary_prompt import build_summary_prompt
@@ -245,11 +245,14 @@ def stream_chat_response(message, conversation_history):
     @yield: blocs de texte au format Server-Sent Events
     """
     try:
-        # 1. Récupérer le catalogue produits depuis le backend Node.js
-        catalogue_text = get_catalogue_text()
+        # 1. Récupérer le catalogue produits et la politique de livraison/retour
+        #    depuis le backend Node.js
+        shop_context = get_shop_context()
 
         # 2. Construire les messages au format Groq/OpenAI-compatible
-        messages = build_messages_for_groq(conversation_history, catalogue_text)
+        messages = build_messages_for_groq(
+            conversation_history, shop_context["catalogue"], shop_context["policy"]
+        )
         # Le frontend envoie l'historique SANS le nouveau message : on l'ajoute,
         # sinon le modèle ne voit jamais la question posée.
         messages.append({"role": "user", "content": message})

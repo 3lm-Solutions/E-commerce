@@ -9,6 +9,7 @@
  */
 
 const { buildSystemPrompt, buildMessagesForClaude, MAX_HISTORY_MESSAGES } = require('../src/services/chatbotPrompt');
+const { describeShopPolicy } = require('../src/config/shopPolicy');
 const { getProductCatalogForChatbot, formatProductForChatbot, formatProductsAsText, shortenDescription, MAX_DESCRIPTION_LENGTH } = require('../src/services/productCatalogService');
 
 // Mock du modèle Sequelize Product (et du module ../../models)
@@ -55,6 +56,27 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
       const prompt = buildSystemPrompt(null);
       expect(prompt).toContain('Le catalogue est actuellement indisponible.');
     });
+
+    test('✅ Injecte la politique de livraison et de retour de la boutique', () => {
+      const prompt = buildSystemPrompt(catalogueText, describeShopPolicy());
+      expect(prompt).toContain('## Livraison et retours');
+      expect(prompt).toContain('4,90 €, offerte dès 50 €');
+      expect(prompt).toContain('30 jours');
+      expect(prompt.toLowerCase()).toContain('jamais inventer de frais');
+    });
+
+    test('✅ Sans politique : interdit de donner frais, délais ou retours', () => {
+      const prompt = buildSystemPrompt(catalogueText);
+      expect(prompt).toContain('La politique de livraison et de retour est indisponible');
+      expect(prompt).not.toContain('4,90 €');
+    });
+
+    test('✅ Impose le format : 3 à 5 phrases, liste pour comparer', () => {
+      const prompt = buildSystemPrompt(catalogueText);
+      expect(prompt).toContain('## Format');
+      expect(prompt).toContain('3 à 5 phrases');
+      expect(prompt).toContain('liste à puces pour comparer');
+    });
   });
 
   describe('buildMessagesForClaude(conversationHistory, catalogueText)', () => {
@@ -69,6 +91,11 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
     test('✅ Injecte le texte du catalogue dans le system prompt final', () => {
       const result = buildMessagesForClaude([], catalogueText);
       expect(result.system).toContain(catalogueText);
+    });
+
+    test('✅ Transmet la politique de livraison au system prompt', () => {
+      const result = buildMessagesForClaude([], catalogueText, describeShopPolicy());
+      expect(result.system).toContain(describeShopPolicy());
     });
 
     test('✅ Reconstruit les messages à partir de l\'historique', () => {
