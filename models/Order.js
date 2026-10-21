@@ -67,7 +67,16 @@ module.exports = (sequelize) => {
         min: 0,
         isDecimal: true
       },
-      comment: 'Montant total de la commande'
+      comment: 'Montant total de la commande (articles + frais de port)'
+    },
+    shippingCost: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0
+      },
+      comment: 'Frais de port (TTC), inclus dans totalAmount'
     },
     status: {
       type: DataTypes.ENUM(...Object.values(ORDER_STATUS)),
@@ -359,19 +368,20 @@ module.exports = (sequelize) => {
   };
 
   /**
-   * Méthode pour calculer le montant total à partir des items
+   * Méthode pour calculer le montant total : items + frais de port
    * @returns {number} - Montant total calculé
    */
   Order.prototype.calculateTotal = function() {
+    const shippingCost = parseFloat(this.shippingCost) || 0;
     if (!this.items || !Array.isArray(this.items)) {
-      return 0;
+      return shippingCost;
     }
-    
+
     return this.items.reduce((total, item) => {
       const itemPrice = parseFloat(item.price) || 0;
       const itemQuantity = parseInt(item.quantity) || 0;
       return total + (itemPrice * itemQuantity);
-    }, 0);
+    }, shippingCost);
   };
 
   /**

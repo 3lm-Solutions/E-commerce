@@ -159,7 +159,7 @@ class AdminUserController {
         where: { userId },
         order: [['created_at', 'DESC']],
         attributes: [
-          'id', 'orderId', 'status', 'totalAmount', 'items',
+          'id', 'orderId', 'status', 'totalAmount', 'shippingCost', 'items',
           'paymentMethod', 'created_at', 'trackingNumber'
         ]
       });
@@ -178,6 +178,7 @@ class AdminUserController {
         id: order.id,
         status: order.status,
         totalAmount: parseFloat(order.totalAmount),
+        shippingCost: parseFloat(order.shippingCost || 0),
         itemsCount: (order.items || []).length,
         paymentMethod: order.paymentMethod,
         trackingNumber: order.trackingNumber,

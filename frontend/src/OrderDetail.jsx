@@ -198,7 +198,7 @@ if (loading) {
                             </div>
                             <div className="flex justify-between text-gray-600">
                                 <span>Livraison</span>
-                                <span>Gratuite</span>
+                                <span>{order.shippingCost > 0 ? `${order.shippingCost.toFixed(2)} €` : "Gratuite"}</span>
                             </div>
                             <div className="pt-3 border-t border-gray-100 flex justify-between font-bold text-lg text-gray-900">
                                 <span>Total (TTC)</span>

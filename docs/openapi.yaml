@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: API E-commerce intelligent (backend Node)
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Contrat de l'API du backend Node/Express (cahier général 00, §3.2 et §6.1).
     Le chatbot IA (Flask) a son propre contrat : `chatbot-ia/docs/openapi.yaml`.
@@ -16,6 +16,10 @@ info:
     - nouvel état `processing` entre `confirmed` et `shipped`, champ `processingAt` ;
     - routes panier `/api/cart/items` et `DELETE /api/cart` (anciennes routes dépréciées) ;
     - `statusHistory` dans le détail admin d'une commande.
+
+    Changements 1.2.0 (non cassants) :
+    - `GET /api/shop/policy` : politique de livraison et de retour ;
+    - frais de port `shippingCost` sur les commandes, inclus dans `totalAmount` (et `total` à la création).
 servers:
   - url: http://localhost:3000
     description: Développement local
@@ -27,6 +31,7 @@ tags:
   - name: Avis
   - name: Panier
   - name: Wishlist
+  - name: Boutique
   - name: Commandes
   - name: Paiement
   - name: Recommandations
@@ -472,6 +477,43 @@ paths:
                       inWishlist: { type: boolean }
                       addedAt: { type: string, format: date-time, nullable: true }
 
+  # ---------------------------------------------------------------- Boutique
+  /api/shop/policy:
+    get:
+      tags: [Boutique]
+      summary: Politique de livraison et de retour
+      description: |
+        Source unique des frais de port (appliqués à la création de commande), des délais
+        et des conditions de retour. `text` : la même politique rédigée en français
+        (chatbot, pages du site).
+      responses:
+        '200':
+          description: Politique de la boutique
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      currency: { type: string, example: EUR }
+                      shipping:
+                        type: object
+                        properties:
+                          zone: { type: string, example: France métropolitaine }
+                          fee: { type: number, example: 4.9 }
+                          freeThreshold: { type: number, example: 50, description: Livraison gratuite à partir de ce montant d'articles (inclus) }
+                          dispatchDelay: { type: string }
+                          deliveryDelay: { type: string }
+                      returns:
+                        type: object
+                        properties:
+                          days: { type: integer, example: 30 }
+                          free: { type: boolean }
+                      text: { type: string }
+
   # ---------------------------------------------------------------- Commandes
   /api/orders:
     post:
@@ -480,6 +522,7 @@ paths:
       description: |
         Transaction : panier et produits verrouillés, stock vérifié puis décrémenté,
         snapshot des articles (nom, prix, image), panier vidé. Commande créée en `pending`.
+        Frais de port calculés par le serveur (`GET /api/shop/policy`) et inclus dans `total`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -504,7 +547,8 @@ paths:
                     type: object
                     properties:
                       orderId: { type: string, example: ORD-MV5AJXSG-L6H03Y }
-                      total: { type: number }
+                      total: { type: number, description: Articles + frais de port }
+                      shippingCost: { type: number, example: 4.9 }
                       status: { type: string, enum: [pending] }
         '400': { description: Panier vide ou adresse invalide, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1686,7 +1730,8 @@ components:
             id: { type: string, format: uuid }
             orderId: { type: string }
             status: { $ref: '#/components/schemas/OrderStatus' }
-            totalAmount: { type: number }
+            totalAmount: { type: number, description: Articles + frais de port }
+            shippingCost: { type: number, description: Frais de port (0 pour les commandes antérieures à la 1.2.0) }
             items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
             shippingAddress: { $ref: '#/components/schemas/Address' }
             paymentMethod: { type: string, nullable: true }

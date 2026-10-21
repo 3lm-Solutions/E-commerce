@@ -5,16 +5,25 @@ import useAuth from "./store/useAuth";
 import { apiFetch } from "./lib/api";
 import useCartStore from "./store/cartStore";
 import NoReviews from "./components/NoReviews";
+import { useShopPolicy } from "./lib/shopPolicy";
 
 function Hero(){
     const [categories,setCategories]=useState([]);
     const [products,setProducts]=useState([]);
- 
+    // Livraison et retours : textes tirés de la politique de la boutique (GET /api/shop/policy)
+    const policy=useShopPolicy();
+
 const WHY = [
   { icon: Cpu,       title: 'IA personnalisée',   desc: "Notre algorithme apprend de vos préférences pour vous proposer les meilleurs produits." },
-  { icon: Rocket,    title: 'Livraison express',  desc: "En 24h, partout en France, sur tout le stock disponible." },
+  { icon: Rocket,    title: 'Livraison rapide',
+    desc: policy
+      ? `Expédition ${policy.shipping.dispatchDelay}, livraison en ${policy.shipping.deliveryDelay}. Offerte dès ${policy.shipping.freeThreshold} € d'achat.`
+      : "Expédition rapide, livraison offerte à partir d'un montant d'achat." },
   { icon: Lock,      title: 'Paiement sécurisé',  desc: "Vos données bancaires sont protégées par un chiffrement de niveau bancaire." },
-  { icon: RefreshCw, title: 'Retour gratuit',     desc: "30 jours pour changer d'avis, sans frais, depuis chez vous." },
+  { icon: RefreshCw, title: policy?.returns.free === false ? 'Retours' : 'Retour gratuit',
+    desc: policy
+      ? `${policy.returns.days} jours après la livraison pour changer d'avis${policy.returns.free ? ", sans frais" : ""}.`
+      : "Vous pouvez changer d'avis après la livraison." },
 ]
 
 // Les catégories n'ont pas d'image en base : icône choisie d'après le nom (sans accents).

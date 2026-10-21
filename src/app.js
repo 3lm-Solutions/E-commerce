@@ -11,6 +11,7 @@ const adminRoutes = require('./routes/admin');
 const reviewRoutes = require('./routes/reviews');
 const cartRoutes = require('./routes/cart');
 const wishlistRoutes = require('./routes/wishlist');
+const shopRoutes = require('./routes/shop');
 const orderRoutes = require('./routes/orders');
 const recommendationRoutes = require('./routes/recommendations');
 const eventRoutes = require('./routes/events');
@@ -81,6 +82,9 @@ app.use('/api/cart', cartRoutes);
 
 // Routes de la wishlist (authentification requise)
 app.use('/api/wishlist', wishlistRoutes);
+
+// Politique de livraison et de retour (publique)
+app.use('/api/shop', shopRoutes);
 
 // Routes des commandes (authentification requise)
 app.use('/api/orders', orderRoutes);

@@ -123,6 +123,8 @@ function mapOrders(orders) {
       _status: order.status,
       total: parseFloat(order.totalAmount || order.total || 0),
       totalAmount: parseFloat(order.totalAmount || order.total || 0),
+      // Frais de port inclus dans le total (0 pour les commandes antérieures)
+      shippingCost: parseFloat(order.shippingCost || 0),
       customer: order.user?.name || order.shippingAddress?.fullName || "",
       address:
         order.shippingAddress

@@ -19,6 +19,7 @@ class StockConflictError extends Error {
  */
 class EmptyCartError extends Error {}
 const { v4: uuidv4 } = require('uuid');
+const { computeShippingCost } = require('../config/shopPolicy');
 
 /**
  * Contrôleur de gestion des commandes
@@ -123,8 +124,11 @@ class OrderController {
           await productsById.get(item.productId).decrement('stock', { by: item.quantity, transaction: t });
         }
 
-        const totalAmount = Math.round(orderItems.reduce((sum, item) => sum + item.total, 0) * 100) / 100;
-        console.log(`💰 Total calculé: ${totalAmount}€`);
+        // Frais de port calculés côté serveur (politique de la boutique), inclus dans le total
+        const subtotal = Math.round(orderItems.reduce((sum, item) => sum + item.total, 0) * 100) / 100;
+        const shippingCost = computeShippingCost(subtotal);
+        const totalAmount = Math.round((subtotal + shippingCost) * 100) / 100;
+        console.log(`💰 Total calculé: ${subtotal}€ + livraison ${shippingCost}€ = ${totalAmount}€`);
 
         // Créer la commande avec status=pending
         const created = await Order.create({
@@ -132,6 +136,7 @@ class OrderController {
           orderId: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
           userId: userId,
           items: orderItems,
+          shippingCost,
           totalAmount: totalAmount,
           status: 'pending', // Status initial selon spécification FonctionnalitéHaute#1778
           shippingAddress: shippingAddress || null,
@@ -156,6 +161,7 @@ class OrderController {
         data: {
           orderId: order.orderId,
           total: parseFloat(totalAmount),
+          shippingCost: parseFloat(order.shippingCost),
           status: 'pending'
         }
       });
@@ -296,7 +302,7 @@ class OrderController {
         limit: limitInt,
         offset: offsetCalculated,
         attributes: [
-          'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
+          'id', 'orderId', 'userId', 'status', 'totalAmount', 'shippingCost', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
           'trackingNumber', 'notes', 'created_at', 'updated_at',
           'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
@@ -311,6 +317,7 @@ class OrderController {
         id: order.id,
         status: order.status,
         totalAmount: parseFloat(order.totalAmount),
+        shippingCost: parseFloat(order.shippingCost || 0),
         itemsCount: order.items?.length || 0,
         // Sous-tâche 3: Retourner les détails complets
         items: order.items?.map(item => ({
@@ -403,7 +410,7 @@ class OrderController {
           attributes: ['id', 'email', 'name']
         }],
         attributes: [
-          'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
+          'id', 'orderId', 'userId', 'status', 'totalAmount', 'shippingCost', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
           'trackingNumber', 'notes', 'created_at', 'updated_at',
           'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
@@ -426,6 +433,7 @@ class OrderController {
         id: order.id,
         status: order.status,
         totalAmount: parseFloat(order.totalAmount),
+        shippingCost: parseFloat(order.shippingCost || 0),
         
         // Items avec product_id/quantity/price selon spécification
         items: order.items?.map(item => ({

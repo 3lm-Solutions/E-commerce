@@ -109,7 +109,7 @@ class AdminOrderController {
         limit: limitInt,
         offset: offsetCalculated,
         attributes: [
-          'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
+          'id', 'orderId', 'userId', 'status', 'totalAmount', 'shippingCost', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
           'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
@@ -180,7 +180,7 @@ class AdminOrderController {
           attributes: ['id', 'email', 'name']
         }],
         attributes: [
-          'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
+          'id', 'orderId', 'userId', 'status', 'totalAmount', 'shippingCost', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
           'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
@@ -330,6 +330,7 @@ class AdminOrderController {
       userId: order.userId,
       status: order.status,
       totalAmount: parseFloat(order.totalAmount),
+      shippingCost: parseFloat(order.shippingCost || 0),
 
       // Items de la commande
       items: order.items?.map(item => ({

@@ -85,7 +85,12 @@ function OrderConfirmation() {
                     ))}
                 </ul>
 
-                <div className="flex justify-between items-center mt-4 text-lg font-bold">
+                <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
+                    <span>Livraison</span>
+                    <span>{order.shippingCost > 0 ? `${order.shippingCost.toFixed(2)} €` : "Gratuite"}</span>
+                </div>
+
+                <div className="flex justify-between items-center mt-2 text-lg font-bold">
                     <span>Total</span>
                     <span className="text-indigo-600">{order.total.toFixed(2)} €</span>
                 </div>

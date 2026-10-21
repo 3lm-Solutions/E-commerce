@@ -226,6 +226,7 @@ const [topProducts, setTopProducts] = useState([]);
         { header: 'Email', value: (o) => o.user?.email || '' },
         { header: 'Statut', value: (o) => STATUS_LABELS[o.status] || o.status },
         { header: 'Articles', value: (o) => (o.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) },
+        { header: 'Livraison (€)', value: (o) => formatAmount(o.shippingCost || 0) },
         { header: 'Total (€)', value: (o) => formatAmount(o.totalAmount) }
       ], orders);
       downloadCsv(`commandes-${new Date().toISOString().slice(0, 10)}.csv`, csv);
@@ -2331,6 +2332,14 @@ confirmDisabled={
                           ))}
                         </tbody>
                         <tfoot>
+                          <tr className="border-t border-gray-100">
+                            <td colSpan="3" className="px-4 py-2 text-sm text-gray-600 text-right">Livraison</td>
+                            <td className="px-4 py-2 text-sm text-gray-600 text-right">
+                              {parseFloat(selectedOrder.shippingCost || 0) > 0
+                                ? `${parseFloat(selectedOrder.shippingCost).toFixed(2)} €`
+                                : 'Gratuite'}
+                            </td>
+                          </tr>
                           <tr className="bg-gray-50 border-t border-gray-100">
                             <td colSpan="3" className="px-4 py-3 text-sm font-bold text-gray-700 text-right">Total</td>
                             <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">

@@ -1,4 +1,5 @@
 import { MapPin, CreditCard, Lock, ShieldCheck, Truck, Headphones } from "lucide-react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,11 +7,20 @@ import useCartStore from "./store/cartStore";
 import { apiFetch } from "./lib/api";
 import { useNavigate } from "react-router-dom"; // Pour la redirection
 import toast from "react-hot-toast"; // Pour les notifications
+import ShippingLine from "./components/ShippingLine";
+import { useShopPolicy, estimateShipping } from "./lib/shopPolicy";
 
 function Checkout() {
   const navigate = useNavigate(); // Permet de rediriger l'utilisateur après le paiement
   const cart = useCartStore(state => state.cart);
   const createOrder = useCartStore(state => state.createOrder);
+  const fetchCart = useCartStore(state => state.fetchCart);
+  const policy = useShopPolicy();
+
+  // Après un rechargement de la page, le panier en mémoire est vide : on le recharge
+  useEffect(() => {
+      fetchCart();
+  }, [fetchCart]);
 
   const schema = z.object({
       FullName: z.string().min(1, "Name cannot be empty"),
@@ -32,8 +42,9 @@ function Checkout() {
   });
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  // Les prix des produits sont TTC : le total est la somme des articles, comme côté backend
-  const total = subtotal;
+  // Les prix des produits sont TTC : total = articles + frais de port (même règle que le backend,
+  // qui recalcule le montant définitif à la création de la commande)
+  const total = subtotal + (estimateShipping(policy, subtotal) ?? 0);
 
 const onSubmit = async (data) => {
       if (cart.length === 0) {
@@ -293,13 +304,10 @@ const onSubmit = async (data) => {
 
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">Subtotal</span>
+              <span className="text-gray-500">Sous-total</span>
               <span className="font-medium">{subtotal.toFixed(2)}€</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Shipping</span>
-              <span className="font-medium text-emerald-600">Free</span>
-            </div>
+            <ShippingLine policy={policy} subtotal={subtotal} />
           </div>
 
           <hr className="my-5" />
@@ -325,7 +333,9 @@ const onSubmit = async (data) => {
             </div>
             <div className="flex gap-3 items-center">
               <Truck size={18} className="text-gray-400" />
-              <p className="text-sm text-gray-500">Fast delivery</p>
+              <p className="text-sm text-gray-500">
+                {policy ? `Expédition ${policy.shipping.dispatchDelay}, livraison en ${policy.shipping.deliveryDelay}` : "Livraison rapide"}
+              </p>
             </div>
             <div className="flex gap-3 items-center">
               <Headphones size={18} className="text-gray-400" />

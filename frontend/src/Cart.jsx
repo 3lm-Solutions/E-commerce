@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import useCartStore from "./store/cartStore";
 import NoReviews from "./components/NoReviews";
+import ShippingLine from "./components/ShippingLine";
+import { useShopPolicy, estimateShipping } from "./lib/shopPolicy";
 
 function Cart() {
  
@@ -13,6 +15,7 @@ function Cart() {
  const increaseQuantity=useCartStore(state=>state.increaseQuantity);
  const decreaseQuantity=useCartStore(state=>state.decreaseQuantity);
  const fetchCart=useCartStore(state=>state.fetchCart);
+ const policy=useShopPolicy();
 
     // Charger le panier depuis le backend au montage du composant
     useEffect(() => {
@@ -28,8 +31,8 @@ function Cart() {
         (sum, item) => sum + item.quantity,
         0
     );
-    // Les prix des produits sont TTC : le total est la somme des articles, comme côté backend
-    const total=subtotal;
+    // Les prix des produits sont TTC : total = articles + frais de port (même règle que le backend)
+    const total=subtotal+(estimateShipping(policy, subtotal) ?? 0);
     
     if (cart.length === 0) {
     return (
@@ -176,18 +179,15 @@ function Cart() {
 
                     
                 <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm sticky top-6">
-                    <h2 className="text-xl font-bold mb-5">Order Summary</h2>
+                    <h2 className="text-xl font-bold mb-5">Récapitulatif</h2>
 
                     <div className="divide-y divide-gray-100">
                         <div className="flex items-center justify-between py-3 text-sm">
-                            <p className="text-gray-500">Subtotal</p>
+                            <p className="text-gray-500">Sous-total</p>
                             <p className="font-semibold text-gray-900">{subtotal.toFixed(2)}€</p>
                         </div>
 
-                        <div className="flex items-center justify-between py-3 text-sm">
-                            <p className="text-gray-500">Shipping</p>
-                            <p className="font-semibold text-emerald-600">Free</p>
-                        </div>
+                        <ShippingLine policy={policy} subtotal={subtotal} className="py-3" />
 
                     </div>
 
@@ -200,7 +200,7 @@ function Cart() {
                     <Link to="/checkout">
                         <button className="w-full flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3.5 rounded-xl shadow transition">
                                 <Lock size={16} />
-                                Checkout
+                                Commander
                         </button>
                     </Link>
 
@@ -211,7 +211,9 @@ function Cart() {
                         </div>
                         <div className="flex flex-col items-center text-center gap-1.5">
                             <RotateCcw size={18} className="text-gray-400" />
-                            <p className="text-[11px] text-gray-500 leading-tight">30-Day Returns</p>
+                            <p className="text-[11px] text-gray-500 leading-tight">
+                                {policy ? `Retour ${policy.returns.free ? "gratuit " : ""}${policy.returns.days} jours` : "Retours"}
+                            </p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-1.5">
                             <Clock size={18} className="text-gray-400" />
