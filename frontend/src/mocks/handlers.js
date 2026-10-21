@@ -25,6 +25,7 @@ const toProduct = (p) => ({
     isActive: p.is_active,
     ratingAvg: p.rating_avg,
     ratingCount: p.rating_count,
+    createdAt: p.created_at,
     category: toCategory(categoriesFixture.find((c) => c.id === p.category_id)),
 });
 

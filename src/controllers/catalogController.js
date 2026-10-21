@@ -134,8 +134,8 @@ class CatalogController {
         isActive: product.isActive,
         ratingAvg: parseFloat(product.ratingAvg),
         ratingCount: product.ratingCount,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
+        createdAt: product.get('created_at'),
+        updatedAt: product.get('updated_at'),
         category: product.category ? {
           id: product.category.id,
           name: product.category.name,
@@ -230,8 +230,8 @@ class CatalogController {
         isActive: product.isActive,
         ratingAvg: parseFloat(product.ratingAvg),
         ratingCount: product.ratingCount,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
+        createdAt: product.get('created_at'),
+        updatedAt: product.get('updated_at'),
         category: product.category ? {
           id: product.category.id,
           name: product.category.name,

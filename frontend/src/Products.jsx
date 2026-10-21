@@ -25,6 +25,17 @@ function normalizeProduct(product) {
     };
 }
 
+// Date de création en millisecondes (0 si absente) pour le tri « Nouveautés »
+function createdTime(product) {
+    const time = Date.parse(product.createdAt ?? product.created_at ?? "");
+    return Number.isNaN(time) ? 0 : time;
+}
+
+// Popularité : nombre d'avis, puis note
+function comparePopularity(a, b) {
+    return (Number(b.ratingCount) || 0) - (Number(a.ratingCount) || 0) || b.rating - a.rating;
+}
+
 // Texte du bandeau décrivant les filtres extraits par la recherche NLP
 function describeNlpFilters(filters) {
     if (!filters) return [];
@@ -161,6 +172,8 @@ function Products() {
                 ...data.data,
                 products: (data.data?.products ?? []).map(normalizeProduct),
             });
+            // Les résultats arrivent classés par pertinence : on garde cet ordre
+            setSort("pertinence");
         } catch (err) {
             console.error("search/nlp error:", err);
             setNlpError("La recherche intelligente a échoué. Veuillez réessayer.");
@@ -173,6 +186,8 @@ function Products() {
         setNlpQuery("");
         setNlpResult(null);
         setNlpError(null);
+        // « Pertinence » n'existe que pendant une recherche intelligente
+        setSort((current) => (current === "pertinence" ? "populaire" : current));
     };
 
     useEffect(() => {
@@ -228,7 +243,11 @@ function Products() {
             if (sort === "prixC") return a.price - b.price;
             if (sort === "prixD") return b.price - a.price;
             if (sort === "topR") return b.rating - a.rating;
-            return 0;
+            // Pertinence : ordre renvoyé par la recherche NLP
+            if (sort === "pertinence") return 0;
+            // Nouveautés : à date égale (produits insérés ensemble), les plus populaires d'abord
+            if (sort === "nouveautes") return createdTime(b) - createdTime(a) || comparePopularity(a, b);
+            return comparePopularity(a, b);
         });
 
     const currentProduct = filteredProducts.slice(firstProduct, lastProduct);
@@ -384,7 +403,9 @@ function Products() {
                                 value={sort}
                                 onChange={handleSort}
                             >
+                                {nlpResult && <option value="pertinence">Pertinence</option>}
                                 <option value="populaire">Popularité</option>
+                                <option value="nouveautes">Nouveautés</option>
                                 <option value="prixC">Prix croissant</option>
                                 <option value="prixD">Prix décroissant</option>
                                 <option value="topR">Meilleure note</option>

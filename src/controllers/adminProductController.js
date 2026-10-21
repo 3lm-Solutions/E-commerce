@@ -93,8 +93,8 @@ class AdminProductController {
         isActive: createdProduct.isActive,
         ratingAvg: parseFloat(createdProduct.ratingAvg),
         ratingCount: createdProduct.ratingCount,
-        createdAt: createdProduct.createdAt,
-        updatedAt: createdProduct.updatedAt,
+        createdAt: createdProduct.get('created_at'),
+        updatedAt: createdProduct.get('updated_at'),
         category: createdProduct.category ? {
           id: createdProduct.category.id,
           name: createdProduct.category.name,
@@ -221,8 +221,8 @@ class AdminProductController {
         isActive: updatedProduct.isActive,
         ratingAvg: parseFloat(updatedProduct.ratingAvg),
         ratingCount: updatedProduct.ratingCount,
-        createdAt: updatedProduct.createdAt,
-        updatedAt: updatedProduct.updatedAt,
+        createdAt: updatedProduct.get('created_at'),
+        updatedAt: updatedProduct.get('updated_at'),
         category: updatedProduct.category ? {
           id: updatedProduct.category.id,
           name: updatedProduct.category.name,
@@ -356,8 +356,8 @@ class AdminProductController {
         isActive: product.isActive,
         ratingAvg: parseFloat(product.ratingAvg),
         ratingCount: product.ratingCount,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
+        createdAt: product.get('created_at'),
+        updatedAt: product.get('updated_at'),
         category: product.category ? {
           id: product.category.id,
           name: product.category.name,
