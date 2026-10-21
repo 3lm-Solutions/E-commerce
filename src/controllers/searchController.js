@@ -21,7 +21,19 @@
         //  Tentative d'extraction NLP via Groq 
         try {
             const filters = await extractFiltersFromQuery(query);
-            const { products, categoryRelaxed } = await filterProducts(filters);
+            let { products, categoryRelaxed } = await filterProducts(filters);
+
+            // Requête vague sans résultat (ex. « cadeau pour un développeur ») :
+            // recherche classique, puis produits les mieux notés
+            let relaxed = null;
+            if (products.length === 0) {
+                products = await searchProductsByText(query);
+                relaxed = products.length > 0 ? 'text' : null;
+            }
+            if (products.length === 0) {
+                products = await filterProducts({ min_price: 0 }, 8).then((r) => r.products);
+                relaxed = 'popular';
+            }
 
             return res.status(200).json({
             success: true,
@@ -30,6 +42,7 @@
                 source: 'nlp',
                 filtersUsed: filters,
                 categoryRelaxed, // true si le filtre de catégorie n'a rien trouvé et a été assoupli
+                relaxed, // 'text' : recherche classique ; 'popular' : mieux notés (aucun résultat exact)
                 count: products.length,
                 products: products.map(formatProduct)
             }

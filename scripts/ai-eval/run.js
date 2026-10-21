@@ -54,7 +54,8 @@ const { sequelize } = require(path.join(ROOT, 'models'));
 const cases = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'cases', `${name}.json`), 'utf8'));
 const contentOf = (completion) => (completion?.choices?.[0]?.message?.content || '')
   .replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-const lastCallMs = () => provider.calls[provider.calls.length - 1]?.ms ?? null;
+// Même température que le chat en production (chatbot-ia/backend/config.py, get_chat_temperature)
+const CHAT_TEMPERATURE = Number.isFinite(parseFloat(process.env.CHAT_TEMPERATURE)) ? parseFloat(process.env.CHAT_TEMPERATURE) : 0.3;
 
 // Exécute un cas (REPEAT fois s'il appelle l'IA) : temps, erreurs, échecs de chaque essai
 async function runCase(feature, c, fn, { repeat = REPEAT } = {}) {
@@ -93,14 +94,16 @@ async function evalChatbot() {
   const catalogue = await getProductCatalogForChatbot();
   const policy = describeShopPolicy();
   const system = buildSystemPrompt(catalogue, policy);
-  const catalogPrices = [...catalogue.matchAll(/ - (\d+(?:\.\d+)?) € - /g)].map((m) => Number(m[1]));
+  // Prix du catalogue envoyé au modèle (format français « 1 599,99 € » depuis le 2026-10-21, ou « 1599.99 € » avant)
+  const catalogPrices = [...catalogue.matchAll(/ - (\d[\d ]*(?:[.,]\d+)?) € - /g)].map((m) => Number(m[1].replace(/ /g, '').replace(',', '.')));
   const policyAmounts = [SHOP_POLICY.shipping.fee, SHOP_POLICY.shipping.freeThreshold];
 
   const results = [];
   for (const c of cases('chatbot')) {
     results.push(await runCase('chatbot', { ...c, theme: `${c.theme} : « ${c.question} »` }, async (fail) => {
       const completion = await provider.client.chat.completions.create({
-        messages: [{ role: 'system', content: system }, { role: 'user', content: c.question }]
+        messages: [{ role: 'system', content: system }, { role: 'user', content: c.question }],
+        temperature: CHAT_TEMPERATURE
       });
       const reply = contentOf(completion);
       if (!reply) fail('réponse vide');
@@ -322,6 +325,8 @@ function report(all, startedAt) {
     `Date : ${startedAt.toISOString().slice(0, 16).replace('T', ' ')} · Commande : \`node scripts/ai-eval/run.js ${args.join(' ')}\``,
     '',
     `Chaque cas qui appelle l'IA est joué ${REPEAT} fois : un cas est réussi s'il passe à chaque essai.`,
+    `Disponibilité : ${provider.calls.length} appels réussis ou en erreur, ${provider.unavailable.length} refus temporaires relancés`
+      + ` (${Object.entries(provider.unavailable.reduce((m, c) => ({ ...m, [c]: (m[c] || 0) + 1 }), {})).map(([c, k]) => `${k} × HTTP ${c}`).join(', ') || 'aucun'}).`,
     '',
     '| Fonctionnalité | Cas réussis | Essais réussis | Temps moyen | Temps max |',
     '|---|---|---|---|---|'

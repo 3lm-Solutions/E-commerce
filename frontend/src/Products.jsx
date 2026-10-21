@@ -468,6 +468,9 @@ function Products() {
                             {nlpResult.categoryRelaxed && (
                                 <p className="mt-1 text-indigo-500">Aucun produit dans cette catégorie, résultats élargis à tout le catalogue.</p>
                             )}
+                            {nlpResult.relaxed === "popular" && (
+                                <p className="mt-1 text-indigo-500">Aucun résultat exact : voici nos produits les mieux notés.</p>
+                            )}
                             {nlpResult.source === "fallback" && (
                                 <p className="mt-1 text-indigo-500">Recherche intelligente indisponible, résultats de la recherche classique.</p>
                             )}

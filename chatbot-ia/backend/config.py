@@ -81,6 +81,23 @@ def get_groq_extra_body() -> dict:
     return {}
 
 
+# Température du chat : basse pour rester sur les faits du catalogue (avec la
+# valeur par défaut du modèle, l'évaluation du 2026-10-21 relevait des prix inventés).
+DEFAULT_CHAT_TEMPERATURE = 0.3
+
+
+def get_chat_temperature() -> float:
+    """
+    Retourne la température des réponses du chat (variable CHAT_TEMPERATURE).
+
+    @returns: la valeur de CHAT_TEMPERATURE si c'est un nombre valide, sinon 0.3
+    """
+    try:
+        return float(os.getenv("CHAT_TEMPERATURE", DEFAULT_CHAT_TEMPERATURE))
+    except ValueError:
+        return DEFAULT_CHAT_TEMPERATURE
+
+
 def get_port() -> int:
     """
     Retourne le port HTTP du serveur Flask.

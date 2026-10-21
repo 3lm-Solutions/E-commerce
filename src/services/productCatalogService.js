@@ -82,6 +82,18 @@ function formatProductForChatbot(product) {
 }
 
 /**
+ * Prix au format français : 1599.99 -> « 1 599,99 ». Avec « 1599.99 », le modèle
+ * oubliait parfois un chiffre (évaluation du 2026-10-21 : « 159,99 € »).
+ *
+ * @param {number} price
+ * @returns {string}
+ */
+function formatPrice(price) {
+  const [integer, decimals] = price.toFixed(2).split('.');
+  return `${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${decimals}`;
+}
+
+/**
  * Transformer une liste de produits formatés en texte lisible (français)
  *
  * Format d'une ligne : « Nom - Prix - Catégorie - Stock: N - Note: X/5 (N avis) - Description ».
@@ -97,7 +109,7 @@ function formatProductsAsText(products) {
   }
 
   const lines = products.map((product, index) => {
-    const price = product.price.toFixed(2);
+    const price = formatPrice(product.price);
     let line = `${index + 1}. ${product.name} - ${price} ${CURRENCY} - ${product.category} - Stock: ${product.stock}`;
     if (product.ratingCount > 0) {
       line += ` - Note: ${product.ratingAvg}/5 (${product.ratingCount} avis)`;
@@ -160,6 +172,7 @@ module.exports = {
   getProductCatalogForChatbot,
   formatProductForChatbot,
   formatProductsAsText,
+  formatPrice,
   shortenDescription,
   MAX_CATALOG_PRODUCTS,
   MAX_DESCRIPTION_LENGTH

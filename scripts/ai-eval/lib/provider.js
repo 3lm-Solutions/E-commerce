@@ -31,13 +31,15 @@ function createProvider(name, model) {
   if (!apiKey) throw new Error(`${config.keyEnv} absent de .env`);
   const modelName = model || config.defaultModel();
   const calls = []; // { ms, ok } de chaque appel, pour les temps de réponse
+  const unavailable = []; // codes HTTP des refus temporaires (429, 5xx) relancés
 
   async function create(params) {
     const { extra_body: extraBody, stream, ...rest } = params; // eslint-disable-line no-unused-vars
     const body = { ...rest, model: modelName, ...(name === 'groq' ? { ...groqExtraBody(modelName), ...extraBody } : {}) };
     const start = Date.now();
     let attempt = 0;
-    // Limite de débit (429) : on attend et on relance, sans compter l'attente dans le temps de réponse
+    // Limite de débit (429) ou modèle surchargé (500, 502, 503) : on attend et on relance,
+    // sans compter l'attente dans le temps de réponse
     for (;;) {
       const callStart = Date.now();
       const res = await fetch(`${config.baseURL}/chat/completions`, {
@@ -45,9 +47,10 @@ function createProvider(name, model) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify(body)
       });
-      if (res.status === 429 && attempt < 5) {
+      if ([429, 500, 502, 503].includes(res.status) && attempt < 6) {
         attempt += 1;
-        const retryAfter = Number(res.headers.get('retry-after')) || 5 * attempt;
+        unavailable.push(res.status);
+        const retryAfter = Number(res.headers.get('retry-after')) || Math.min(5 * 2 ** (attempt - 1), 60);
         await new Promise((r) => setTimeout(r, retryAfter * 1000));
         continue;
       }
@@ -66,6 +69,7 @@ function createProvider(name, model) {
     name,
     model: modelName,
     calls,
+    unavailable,
     client: { chat: { completions: { create } } }
   };
 }

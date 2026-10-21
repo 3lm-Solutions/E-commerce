@@ -1,5 +1,5 @@
     const { getGroqClient, getGroqModel } = require('./groqClient');
-    const { Category } = require('../../models');
+    const { Category, Product } = require('../../models');
 
     /**
      * Service d'extraction de filtres de recherche à partir d'une requête en
@@ -14,9 +14,15 @@
      * injectée (CDC 05 §3.2) pour que Groq choisisse une catégorie existante
      * au lieu d'en inventer une.
      */
-    function buildSystemPrompt(categoryNames) {
-    const categoriesList = categoryNames.length > 0
-        ? categoryNames.map((name) => `- ${name}`).join('\n')
+    // categories : noms (string) ou { name, examples } (noms de produits de la catégorie).
+    // Les exemples évitent les erreurs de rangement : sans eux, « chaussures pour courir »
+    // était classé dans « Sports & Loisirs » alors que les chaussures sont dans « Vêtements ».
+    function buildSystemPrompt(categories) {
+    const categoriesList = categories.length > 0
+        ? categories.map((category) => {
+            const { name, examples = [] } = typeof category === 'string' ? { name: category } : category;
+            return examples.length > 0 ? `- ${name} (exemples de produits : ${examples.join(', ')})` : `- ${name}`;
+        }).join('\n')
         : '(aucune catégorie disponible)';
 
     return `Tu es un extracteur de filtres de recherche pour un site e-commerce.
@@ -36,6 +42,7 @@
     Règles strictes :
     - Réponds UNIQUEMENT avec l'objet JSON, rien d'autre (pas de markdown, pas d'explication).
     - "category" doit être recopiée exactement depuis la liste, ou null. N'invente jamais de catégorie.
+    - Choisis la catégorie d'après les exemples de produits : un type de produit va dans la catégorie qui contient des produits de ce type, même si le nom d'une autre catégorie semble plus proche.
     - "min_price" et "max_price" doivent être des nombres purs (sans devise, sans texte), ou null.
     - "tags" contient des mots-clés courts en minuscules, au singulier, sans doublons. Le catalogue mélange français et anglais :
       donne chaque mot-clé en français ET son équivalent anglais courant (ex: "chaussure", "shoe").
@@ -53,9 +60,22 @@
     // Prompt de référence (sans catégories), conservé pour compatibilité
     const SYSTEM_PROMPT = buildSystemPrompt([]);
 
-    async function getCategoryNames() {
-    const categories = await Category.findAll({ attributes: ['name'] });
-    return [...new Set(categories.map((category) => category.name))];
+    // Nombre de produits cités en exemple par catégorie dans le prompt
+    const MAX_EXAMPLES_PER_CATEGORY = 6;
+
+    async function getCategoriesWithExamples() {
+    const categories = await Category.findAll({
+        attributes: ['name'],
+        include: [{ model: Product, as: 'products', attributes: ['name', 'ratingCount'], where: { isActive: true }, required: false }],
+        order: [['name', 'ASC']]
+    });
+    return categories.map((category) => ({
+        name: category.name,
+        examples: (category.products || [])
+        .sort((a, b) => (b.ratingCount || 0) - (a.ratingCount || 0))
+        .slice(0, MAX_EXAMPLES_PER_CATEGORY)
+        .map((product) => product.name)
+    }));
     }
 
     function parsePrice(value) {
@@ -95,7 +115,7 @@
 
     const groq = getGroqClient();
     const model = getGroqModel();
-    const systemPrompt = buildSystemPrompt(await getCategoryNames());
+    const systemPrompt = buildSystemPrompt(await getCategoriesWithExamples());
 
     let completion;
     try {

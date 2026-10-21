@@ -71,6 +71,10 @@ def build_system_prompt(catalogue_text, policy_text=None):
         "## Limites",
         "- Ne JAMAIS inventer un produit qui n'est pas présent dans le catalogue fourni.",
         "- Ne JAMAIS donner un prix ou un stock qui ne figure pas dans le catalogue fourni.",
+        "- Recopie chaque prix exactement comme dans le catalogue (même montant, tous les chiffres) : "
+        "ne l'arrondis pas et ne le recalcule pas.",
+        "- Pour un budget, ne propose que des produits dont le prix est inférieur ou égal au budget "
+        "et dont le stock est supérieur à 0. Si aucun produit ne convient, dis-le.",
         "- Ne JAMAIS ajouter de caractéristique technique absente de la description fournie.",
         "- Ne JAMAIS inventer de frais, de délai, de zone de livraison ou de condition de retour "
         "absents de la section « Livraison et retours » (par exemple la livraison à l'étranger) : "

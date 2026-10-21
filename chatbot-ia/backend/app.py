@@ -269,6 +269,7 @@ def stream_chat_response(message, conversation_history):
                 model=config.get_groq_model(),
                 extra_body=config.get_groq_extra_body(),
                 messages=messages,
+                temperature=config.get_chat_temperature(),
                 stream=True,
             )
 

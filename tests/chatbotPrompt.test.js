@@ -10,7 +10,7 @@
 
 const { buildSystemPrompt, buildMessagesForClaude, MAX_HISTORY_MESSAGES } = require('../src/services/chatbotPrompt');
 const { describeShopPolicy } = require('../src/config/shopPolicy');
-const { getProductCatalogForChatbot, formatProductForChatbot, formatProductsAsText, shortenDescription, MAX_DESCRIPTION_LENGTH } = require('../src/services/productCatalogService');
+const { getProductCatalogForChatbot, formatProductForChatbot, formatProductsAsText, formatPrice, shortenDescription, MAX_DESCRIPTION_LENGTH } = require('../src/services/productCatalogService');
 
 // Mock du modèle Sequelize Product (et du module ../../models)
 jest.mock('../models', () => ({
@@ -177,8 +177,8 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         limit: 20
       }));
 
-      expect(text).toContain('T-shirt Bleu - 199.99 € - Vêtements - Stock: 15');
-      expect(text).toContain('iPhone 15 Pro - 1200.00 € - Électronique - Stock: 25');
+      expect(text).toContain('T-shirt Bleu - 199,99 € - Vêtements - Stock: 15');
+      expect(text).toContain('iPhone 15 Pro - 1 200,00 € - Électronique - Stock: 25');
     });
 
     test('✅ Retourne un message de repli si la requête échoue', async () => {
@@ -252,7 +252,13 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         { name: 'Produit B', price: 20.25, category: 'Cat B', stock: 0 }
       ]);
 
-      expect(text).toBe('1. Produit A - 10.50 € - Cat A - Stock: 3\n2. Produit B - 20.25 € - Cat B - Stock: 0');
+      expect(text).toBe('1. Produit A - 10,50 € - Cat A - Stock: 3\n2. Produit B - 20,25 € - Cat B - Stock: 0');
+    });
+
+    test('✅ formatPrice : format français avec séparateur de milliers', () => {
+      expect(formatPrice(1599.99)).toBe('1 599,99');
+      expect(formatPrice(29.9)).toBe('29,90');
+      expect(formatPrice(12345678)).toBe('12 345 678,00');
     });
 
     test('✅ formatProductsAsText ajoute la note (si avis) et la description', () => {
@@ -262,8 +268,8 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
       ]);
 
       expect(text).toBe(
-        '1. MacBook Pro 16" - 2499.99 € - Électronique - Stock: 12 - Note: 5/5 (1 avis) - Puce M3 Pro, 18GB de RAM.\n' +
-        '2. Sans avis - 10.00 € - Cat - Stock: 1 - Description seule'
+        '1. MacBook Pro 16" - 2 499,99 € - Électronique - Stock: 12 - Note: 5/5 (1 avis) - Puce M3 Pro, 18GB de RAM.\n' +
+        '2. Sans avis - 10,00 € - Cat - Stock: 1 - Description seule'
       );
     });
 
