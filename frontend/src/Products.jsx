@@ -51,15 +51,17 @@ function Products() {
 
     const [page, setPage] = useState(1);
     // ?category=... : lien depuis les catégories de l'accueil
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const categoryParam = searchParams.get("category");
+    // ?q=... : recherche lancée depuis la barre de la navbar
+    const queryParam = searchParams.get("q") || "";
     const [category, setCategory] = useState(categoryParam || "Tout");
     const [categories, setCategories] = useState([{ id: "all", name: "Tout" }]);
     const [priceMax, setPriceMax] = useState(null); // null : pas de limite de prix
     const [rating, setRating] = useState(0);
 
     const [products, setProducts] = useState([]);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState(queryParam);
     // Changer la clé remonte SearchInput, ce qui vide son champ (Réinitialiser)
     const [searchKey, setSearchKey] = useState(0);
     const [sort, setSort] = useState("populaire");
@@ -119,6 +121,11 @@ function Products() {
     useEffect(() => {
         setCategory(categoryParam || "Tout");
     }, [categoryParam]);
+
+    // Nouvelle recherche depuis la navbar (même si on est déjà sur le catalogue)
+    useEffect(() => {
+        setSearch(queryParam);
+    }, [queryParam]);
 
     // Catégories réelles (GET /api/categories). En cas d'échec, seul « Tout » reste.
     useEffect(() => {
@@ -208,6 +215,8 @@ function Products() {
         setRating(0);
         setSearch("");
         setSearchKey((key) => key + 1);
+        // Sinon ?q= (ou ?category=) réappliquerait la recherche au remontage du champ
+        if (searchParams.toString()) setSearchParams({}, { replace: true });
     }
 
     const changePrice = (e) => {
@@ -383,7 +392,8 @@ function Products() {
                         {/* Recherche par nom */}
                         <div className="flex-1">
                             <SearchInput
-                                key={searchKey}
+                                key={`${searchKey}-${queryParam}`}
+                                defaultValue={queryParam}
                                 placeholder="Rechercher un produit..."
                                 onSearch={handleSearch}
                                 showHistory={true}

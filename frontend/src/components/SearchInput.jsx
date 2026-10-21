@@ -18,9 +18,10 @@ const SearchInput = ({
   maxSuggestions = 8,
   className = '',
   autoFocus = false,
-  clearOnSelect = false
+  clearOnSelect = false,
+  defaultValue = ''
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(defaultValue);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchHistory, setSearchHistory] = useState([]);
@@ -368,7 +369,8 @@ SearchInput.propTypes = {
   maxSuggestions: PropTypes.number,
   className: PropTypes.string,
   autoFocus: PropTypes.bool,
-  clearOnSelect: PropTypes.bool
+  clearOnSelect: PropTypes.bool,
+  defaultValue: PropTypes.string
 };
 
 export default SearchInput;

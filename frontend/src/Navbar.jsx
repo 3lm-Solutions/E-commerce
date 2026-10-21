@@ -43,6 +43,15 @@ function Navbar() {
         navigate("/");
     };
 
+    // Recherche rapide : le catalogue lit ?q= et applique la recherche par nom
+    const [searchTerm, setSearchTerm] = useState("");
+    const handleSearch = (e) => {
+        e.preventDefault();
+        const term = searchTerm.trim();
+        navigate(term ? `/products?q=${encodeURIComponent(term)}` : "/products");
+        setSearchTerm("");
+    };
+
     const navLinks = [
         { to: "/", label: "Accueil" },
         { to: "/products", label: "Produits" },
@@ -85,15 +94,18 @@ function Navbar() {
 
                     {/* Actions desktop */}
                     <div className="hidden md:flex items-center space-x-4">
-                        {/* Barre de recherche rapide */}
-                        <div className="relative">
+                        {/* Barre de recherche rapide : ouvre le catalogue filtré (/products?q=…) */}
+                        <form role="search" onSubmit={handleSearch} className="relative">
                             <input
-                                type="text"
+                                type="search"
                                 placeholder="Rechercher..."
+                                aria-label="Rechercher un produit"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-48 pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
                             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
+                        </form>
 
                         {!isAuthenticated ? (
                             <>
@@ -208,14 +220,17 @@ function Navbar() {
                     <div className="md:hidden border-t border-gray-100 py-4 space-y-2">
                         {/* Recherche mobile */}
                         <div className="px-2 pb-4">
-                            <div className="relative">
+                            <form role="search" onSubmit={handleSearch} className="relative">
                                 <input
-                                    type="text"
+                                    type="search"
                                     placeholder="Rechercher des produits..."
+                                    aria-label="Rechercher un produit"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                 />
                                 <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            </div>
+                            </form>
                         </div>
 
                         {/* Navigation links */}
