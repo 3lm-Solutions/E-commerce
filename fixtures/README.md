@@ -40,3 +40,19 @@ de ces fichiers.
 Les mots de passe de `users.json` sont des valeurs de test, en clair, pour les
 mocks uniquement : `AdminPassword123` (u_001), `UserPassword123` (u_002),
 `Password123` pour les autres. Ne jamais les réutiliser ailleurs.
+
+## Mode mock (frontend sans backend)
+
+Dans `frontend/.env.local` : `VITE_USE_MOCK=true`, puis redémarrer `npm run dev`.
+MSW simule alors toute l'API utilisée par le site, à partir de ces fichiers :
+
+- `frontend/src/mocks/catalog.js` : catalogue, authentification, avis ;
+- `shop.js` : panier, wishlist, politique de livraison, commandes, paiement simulé ;
+- `reco.js` : recommandations, événements, recherche ;
+- `admin.js` : tableau de bord admin ;
+- `ai.js` : chatbot et génération de description (réponses par règles, sans IA).
+
+Les modifications (panier, commandes, actions admin) sont gardées dans
+`sessionStorage` : elles survivent à un rechargement et disparaissent à la
+fermeture de l'onglet. La politique de livraison est lue dans
+`src/config/shopPolicy.json`, comme le backend.

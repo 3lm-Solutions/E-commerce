@@ -3,21 +3,15 @@
  * Utilisée par la création de commande (frais de port), GET /api/shop/policy
  * (panier, checkout, pages du site) et le prompt du chatbot.
  *
+ * Les valeurs sont dans shopPolicy.json, lu aussi par les mocks MSW du frontend.
  * Les prix sont TTC, en euros. Tarifs internationaux : à définir avec le paiement.
  */
+const policy = require('./shopPolicy.json');
+
 const SHOP_POLICY = Object.freeze({
-  currency: 'EUR',
-  shipping: Object.freeze({
-    zone: 'France métropolitaine',
-    fee: 4.90,
-    freeThreshold: 50,
-    dispatchDelay: 'sous 24 h (jours ouvrés)',
-    deliveryDelay: '2 à 4 jours ouvrés'
-  }),
-  returns: Object.freeze({
-    days: 30,
-    free: true
-  })
+  currency: policy.currency,
+  shipping: Object.freeze({ ...policy.shipping }),
+  returns: Object.freeze({ ...policy.returns })
 });
 
 /**

@@ -3,29 +3,34 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.jsx";
-import { worker } from "./mocks/browser";
+import { CHATBOT_URL } from "./lib/api";
 
 /*
- * MSW (Mock Service Worker) est désactivé par défaut.
- * Pour activer les mocks en mode isolé (tests / développement sans backend),
- * créez un fichier .env.local avec VITE_ENABLE_MOCKS=true dans frontend/
+ * Mode mock (cahier 00 §3.2) : MSW (Mock Service Worker) remplace toute l'API
+ * (backend Node et service chatbot) par des données tirées de /fixtures.
+ * Désactivé par défaut. Pour l'activer, dans frontend/.env.local :
  *
- * Exemple :
- *   VITE_ENABLE_MOCKS=true
- *   npm run dev
+ *   VITE_USE_MOCK=true
  *
- * MSW intercepte alors les appels fetch("/api/...") avec les handlers du dossier mocks/
- * et permet de développer le frontend sans dépendre du backend Node.js réel.
- *
- * En production, MSW n'est jamais activé : toutes les requêtes /api sont proxyfiées
- * vers le backend via la config server.proxy dans vite.config.js.
+ * puis redémarrer `npm run dev`. Comptes de démonstration : fixtures/users.json.
+ * Les mocks ne sont chargés (et inclus dans le build) que si le mode est activé.
  */
-const enableMocks = import.meta.env.VITE_ENABLE_MOCKS === "true";
+const useMock = import.meta.env.VITE_USE_MOCK === "true";
+
+// Appels d'API sans handler : signalés dans la console (les images, scripts Vite, etc. passent sans bruit)
+const API_PREFIXES = ["/api/", "/recommendations", "/events", "/search"];
+
+function onUnhandledRequest(request, print) {
+  const url = new URL(request.url);
+  const isApi = API_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)) || request.url.startsWith(CHATBOT_URL);
+  if (isApi) print.warning();
+}
 
 async function startApp() {
-  if (enableMocks) {
-    await worker.start();
-    console.log("[MSW] Mock Service Worker activé (mode test isolé)");
+  if (useMock) {
+    const { worker } = await import("./mocks/browser");
+    await worker.start({ onUnhandledRequest });
+    console.log("[MSW] Mode mock activé : l'API est simulée à partir de /fixtures");
   }
 
   createRoot(document.getElementById("root")).render(

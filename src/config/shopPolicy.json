@@ -1,0 +1,14 @@
+{
+  "currency": "EUR",
+  "shipping": {
+    "zone": "France métropolitaine",
+    "fee": 4.9,
+    "freeThreshold": 50,
+    "dispatchDelay": "sous 24 h (jours ouvrés)",
+    "deliveryDelay": "2 à 4 jours ouvrés"
+  },
+  "returns": {
+    "days": 30,
+    "free": true
+  }
+}
