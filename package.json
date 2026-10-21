@@ -31,16 +31,6 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio"
   },
-  "keywords": [
-    "ecommerce",
-    "nodejs",
-    "sequelize",
-    "prisma",
-    "postgresql"
-  ],
-  "author": "Ayoub Aguezar",
-  "license": "ISC",
-  "type": "commonjs",
   "jest": {
     "testEnvironment": "node",
     "testPathIgnorePatterns": [
@@ -52,6 +42,16 @@
       "^uuid$": "<rootDir>/src/tests/support/uuid.js"
     }
   },
+  "keywords": [
+    "ecommerce",
+    "nodejs",
+    "sequelize",
+    "prisma",
+    "postgresql"
+  ],
+  "author": "Ayoub Aguezar",
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^7.8.0",
     "axios": "^1.6.7",
