@@ -338,7 +338,6 @@ class AuthController {
    */
   static async generateTokens(user) {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
-     console.log("LOGIN SECRET =", process.env.JWT_SECRET);
     // Payload pour les tokens
     const payload = {
       userId: user.id,
