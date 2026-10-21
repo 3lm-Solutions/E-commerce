@@ -1,0 +1,350 @@
+[
+  {
+    "id": "40000000-0000-4000-8000-000000000001",
+    "fixture_key": "o_001",
+    "order_id": "ORD-FIX-001",
+    "user_id": "20000000-0000-4000-8000-000000000002",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000011",
+        "name": "iPhone 15 Pro",
+        "price": 1229,
+        "image": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800",
+        "quantity": 1,
+        "total": 1229,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 1229,
+    "status": "delivered",
+    "shipping_address": {
+      "fullName": "Utilisateur Test",
+      "email": "user@example.com",
+      "phone": "0600000000",
+      "address": "12 rue de la Paix",
+      "city": "Paris",
+      "postalCode": "75002"
+    },
+    "payment_method": "card",
+    "tracking_number": "TRK-FIX-001",
+    "confirmed_at": "2026-10-03T15:00:00.000Z",
+    "processing_at": "2026-10-03T21:00:00.000Z",
+    "shipped_at": "2026-10-04T03:00:00.000Z",
+    "delivered_at": "2026-10-04T09:00:00.000Z",
+    "cancelled_at": null,
+    "created_at": "2026-10-03T09:00:00.000Z",
+    "updated_at": "2026-10-04T09:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000002",
+        "created_at": "2026-10-03T09:00:00.000Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "confirmed",
+        "changed_by": null,
+        "created_at": "2026-10-03T15:00:00.000Z"
+      },
+      {
+        "from_status": "confirmed",
+        "to_status": "processing",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-03T21:00:00.000Z"
+      },
+      {
+        "from_status": "processing",
+        "to_status": "shipped",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-04T03:00:00.000Z"
+      },
+      {
+        "from_status": "shipped",
+        "to_status": "delivered",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-04T09:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "40000000-0000-4000-8000-000000000002",
+    "fixture_key": "o_002",
+    "order_id": "ORD-FIX-002",
+    "user_id": "20000000-0000-4000-8000-000000000002",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000016",
+        "name": "T-shirt Premium Coton",
+        "price": 29.99,
+        "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800",
+        "quantity": 2,
+        "total": 59.98,
+        "stockReserved": true
+      },
+      {
+        "productId": "10000000-0000-4000-8000-000000000013",
+        "name": "Jean Slim Fit",
+        "price": 79.99,
+        "image": "https://images.unsplash.com/photo-1604176354204-9268737828e4?w=800",
+        "quantity": 1,
+        "total": 79.99,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 139.97,
+    "status": "shipped",
+    "shipping_address": {
+      "fullName": "Utilisateur Test",
+      "email": "user@example.com",
+      "phone": "0600000000",
+      "address": "12 rue de la Paix",
+      "city": "Paris",
+      "postalCode": "75002"
+    },
+    "payment_method": "card",
+    "tracking_number": "TRK-FIX-002",
+    "confirmed_at": "2026-10-05T15:00:00.000Z",
+    "processing_at": "2026-10-05T21:00:00.000Z",
+    "shipped_at": "2026-10-06T03:00:00.000Z",
+    "delivered_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-10-05T09:00:00.000Z",
+    "updated_at": "2026-10-06T03:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000002",
+        "created_at": "2026-10-05T09:00:00.000Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "confirmed",
+        "changed_by": null,
+        "created_at": "2026-10-05T15:00:00.000Z"
+      },
+      {
+        "from_status": "confirmed",
+        "to_status": "processing",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-05T21:00:00.000Z"
+      },
+      {
+        "from_status": "processing",
+        "to_status": "shipped",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-06T03:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "40000000-0000-4000-8000-000000000003",
+    "fixture_key": "o_003",
+    "order_id": "ORD-FIX-003",
+    "user_id": "20000000-0000-4000-8000-000000000003",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000001",
+        "name": "Canapé 3 Places Scandinave",
+        "price": 599.99,
+        "image": "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800",
+        "quantity": 1,
+        "total": 599.99,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 599.99,
+    "status": "processing",
+    "shipping_address": {
+      "fullName": "Sophie Martin",
+      "email": "sophie.martin@example.com",
+      "phone": "0600000000",
+      "address": "8 avenue Jean Jaurès",
+      "city": "Lyon",
+      "postalCode": "69007"
+    },
+    "payment_method": "card",
+    "tracking_number": null,
+    "confirmed_at": "2026-10-06T15:00:00.000Z",
+    "processing_at": "2026-10-06T21:00:00.000Z",
+    "shipped_at": null,
+    "delivered_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-10-06T09:00:00.000Z",
+    "updated_at": "2026-10-06T21:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000003",
+        "created_at": "2026-10-06T09:00:00.000Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "confirmed",
+        "changed_by": null,
+        "created_at": "2026-10-06T15:00:00.000Z"
+      },
+      {
+        "from_status": "confirmed",
+        "to_status": "processing",
+        "changed_by": "20000000-0000-4000-8000-000000000001",
+        "created_at": "2026-10-06T21:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "40000000-0000-4000-8000-000000000004",
+    "fixture_key": "o_004",
+    "order_id": "ORD-FIX-004",
+    "user_id": "20000000-0000-4000-8000-000000000004",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000002",
+        "name": "Clean Code (Livre)",
+        "price": 45.99,
+        "image": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800",
+        "quantity": 1,
+        "total": 45.99,
+        "stockReserved": true
+      },
+      {
+        "productId": "10000000-0000-4000-8000-000000000015",
+        "name": "Node.js Design Patterns",
+        "price": 49.99,
+        "image": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800",
+        "quantity": 1,
+        "total": 49.99,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 95.98,
+    "status": "confirmed",
+    "shipping_address": {
+      "fullName": "Karim Benali",
+      "email": "karim.benali@example.com",
+      "phone": "0600000000",
+      "address": "3 place du Capitole",
+      "city": "Toulouse",
+      "postalCode": "31000"
+    },
+    "payment_method": "card",
+    "tracking_number": null,
+    "confirmed_at": "2026-10-07T15:00:00.000Z",
+    "processing_at": null,
+    "shipped_at": null,
+    "delivered_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-10-07T09:00:00.000Z",
+    "updated_at": "2026-10-07T15:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000004",
+        "created_at": "2026-10-07T09:00:00.000Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "confirmed",
+        "changed_by": null,
+        "created_at": "2026-10-07T15:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "40000000-0000-4000-8000-000000000005",
+    "fixture_key": "o_005",
+    "order_id": "ORD-FIX-005",
+    "user_id": "20000000-0000-4000-8000-000000000005",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000019",
+        "name": "Tapis de Yoga Antidérapant",
+        "price": 29.99,
+        "image": "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=800",
+        "quantity": 1,
+        "total": 29.99,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 29.99,
+    "status": "pending",
+    "shipping_address": {
+      "fullName": "Lucas Dubois",
+      "email": "lucas.dubois@example.com",
+      "phone": "0600000000",
+      "address": "21 rue Nationale",
+      "city": "Lille",
+      "postalCode": "59000"
+    },
+    "payment_method": "card",
+    "tracking_number": null,
+    "confirmed_at": null,
+    "processing_at": null,
+    "shipped_at": null,
+    "delivered_at": null,
+    "cancelled_at": null,
+    "created_at": "2026-10-08T09:00:00.000Z",
+    "updated_at": "2026-10-08T09:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000005",
+        "created_at": "2026-10-08T09:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "40000000-0000-4000-8000-000000000006",
+    "fixture_key": "o_006",
+    "order_id": "ORD-FIX-006",
+    "user_id": "20000000-0000-4000-8000-000000000006",
+    "items": [
+      {
+        "productId": "10000000-0000-4000-8000-000000000009",
+        "name": "Sneakers Running Pro",
+        "price": 129.99,
+        "image": "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800",
+        "quantity": 1,
+        "total": 129.99,
+        "stockReserved": true
+      }
+    ],
+    "total_amount": 129.99,
+    "status": "cancelled",
+    "shipping_address": {
+      "fullName": "Amina El Idrissi",
+      "email": "amina.elidrissi@example.com",
+      "phone": "0600000000",
+      "address": "5 cours Mirabeau",
+      "city": "Aix-en-Provence",
+      "postalCode": "13100"
+    },
+    "payment_method": "card",
+    "tracking_number": null,
+    "confirmed_at": null,
+    "processing_at": null,
+    "shipped_at": null,
+    "delivered_at": null,
+    "cancelled_at": "2026-10-08T15:00:00.000Z",
+    "created_at": "2026-10-08T09:00:00.000Z",
+    "updated_at": "2026-10-08T15:00:00.000Z",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "changed_by": "20000000-0000-4000-8000-000000000006",
+        "created_at": "2026-10-08T09:00:00.000Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "cancelled",
+        "changed_by": "20000000-0000-4000-8000-000000000006",
+        "created_at": "2026-10-08T15:00:00.000Z"
+      }
+    ]
+  }
+]

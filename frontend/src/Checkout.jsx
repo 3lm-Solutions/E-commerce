@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useCartStore from "./store/cartStore";
+import { apiFetch } from "./lib/api";
 import { useNavigate } from "react-router-dom"; // Pour la redirection
 import toast from "react-hot-toast"; // Pour les notifications
 
@@ -25,14 +26,14 @@ function Checkout() {
   const {
      register,
      handleSubmit,
-     formState: { errors },
+     formState: { errors, isSubmitting },
   } = useForm({
      resolver: zodResolver(schema)
   });
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.2;
-  const total = subtotal + tax;
+  // Les prix des produits sont TTC : le total est la somme des articles, comme côté backend
+  const total = subtotal;
 
 const onSubmit = async (data) => {
       if (cart.length === 0) {
@@ -65,11 +66,10 @@ const onSubmit = async (data) => {
       // 2. Lancer le paiement Stripe (POST /api/payments/create-intent)
       //    avec l'orderId et le montant total retourné par le backend
       try {
-          const stripeRes = await fetch('/api/payments/create-intent', {
+          const stripeRes = await apiFetch('/api/payments/create-intent', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
               body: JSON.stringify({
                   orderId: result.orderId,
@@ -95,7 +95,7 @@ const onSubmit = async (data) => {
               iconTheme: { primary: '#fff', secondary: '#22c55e' },
           });
 
-          navigate('/orders'); // Redirige vers la page /orders
+          navigate(`/order-confirmation/${result.orderId}`); // Page de confirmation de la commande
       } catch (err) {
           console.error('Erreur paiement Stripe:', err);
           toast.error("Erreur réseau lors du paiement", {
@@ -300,10 +300,6 @@ const onSubmit = async (data) => {
               <span className="text-gray-500">Shipping</span>
               <span className="font-medium text-emerald-600">Free</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Tax</span>
-              <span className="font-medium">{tax.toFixed(2)}€</span>
-            </div>
           </div>
 
           <hr className="my-5" />
@@ -314,10 +310,12 @@ const onSubmit = async (data) => {
               {total.toFixed(2)}€
             </h2>
           </div>
+          <p className="-mt-6 mb-8 text-right text-xs text-gray-500">TVA incluse</p>
 
-          <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2" type="submit">
+          {/* Désactivé pendant l'envoi : un double clic créait deux commandes */}
+          <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={isSubmitting}>
             <Lock size={18} />
-            Pay Now
+            {isSubmitting ? "Traitement…" : "Pay Now"}
           </button>
 
           <div className="mt-8 space-y-4">

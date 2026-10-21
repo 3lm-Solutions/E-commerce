@@ -5,7 +5,7 @@ import {
   TrendingUp, Package, DollarSign, Bell, Search, 
 Sparkles, ArrowUpRight, MoreVertical, X, CheckCircle2, ArrowUpDown, Loader2, Plus, Pencil, Trash2, Tag, FolderTree,
 Eye, Calendar, RefreshCw, MapPin, CreditCard, Truck, Filter, Power, RotateCcw, UserCheck, BarChart3,
-  UserPlus, AlertTriangle
+  UserPlus, AlertTriangle, History, Download
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend
@@ -13,6 +13,8 @@ import {
 import { Link } from 'react-router-dom';
 import useCartStore from './store/cartStore';
 import useAuth from './store/useAuth';
+import { apiFetch } from './lib/api';
+import { toCsv, formatAmount, downloadCsv } from './lib/csv';
 import ProductFormModal from './components/ProductFormModal';
 import CategoryFormModal from './components/CategoryFormModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
@@ -88,6 +90,7 @@ function AdminDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderDateFilter, setOrderDateFilter] = useState('');
   const [orderClientFilter, setOrderClientFilter] = useState('');
+  const [isExportingOrders, setIsExportingOrders] = useState(false);
   const [ordersCurrentPage, setOrdersCurrentPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 20 });
   const [ordersPerPage, setOrdersPerPage] = useState(20);
@@ -135,20 +138,22 @@ const [topProducts, setTopProducts] = useState([]);
 
   // Mapping des statuts backend (anglais) → français pour l'affichage
   const STATUS_LABELS = {
-    pending: 'En préparation',
+    pending: 'En attente de paiement',
     confirmed: 'Confirmée',
+    processing: 'En préparation',
     shipped: 'Expédiée',
     delivered: 'Livrée',
-    canceled: 'Annulée'
+    cancelled: 'Annulée'
   };
 
   // Couleurs des badges selon le statut
   const STATUS_BADGES = {
     pending: 'bg-gray-100 text-gray-700',
     confirmed: 'bg-blue-100 text-blue-700',
+    processing: 'bg-indigo-100 text-indigo-700',
     shipped: 'bg-orange-100 text-orange-700',
     delivered: 'bg-green-100 text-green-700',
-    canceled: 'bg-red-100 text-red-700'
+    cancelled: 'bg-red-100 text-red-700'
   };
 
   // Mapping des commandes backend vers le format attendu par le dashboard
@@ -171,7 +176,7 @@ const [topProducts, setTopProducts] = useState([]);
         internalId: order.id,
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR') : '',
         isoDate: order.createdAt,
-        status: STATUS_LABELS[order.status] || order.status || 'En préparation',
+        status: STATUS_LABELS[order.status] || order.status || 'En attente de paiement',
         _status: order.status,
         total: parseFloat(order.totalAmount || 0),
         customer,
@@ -187,12 +192,56 @@ const [topProducts, setTopProducts] = useState([]);
     });
   }
 
+  // Export CSV des commandes filtrées (cahier 03, §3.1) : toutes les pages
+  // de GET /api/admin/orders avec les filtres actuels, fichier généré ici.
+  async function exportOrdersCsv() {
+    setIsExportingOrders(true);
+    try {
+      const orders = [];
+      const MAX_PAGES = 50; // 100 commandes par page côté backend
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const params = new URLSearchParams({ page, limit: 100 });
+        if (orderStatusFilter) params.set('status', orderStatusFilter);
+        if (orderDateFilter) params.set('startDate', orderDateFilter);
+        if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
+
+        const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
+        }
+        orders.push(...(data?.data?.orders ?? []));
+        if (page >= (data?.data?.pagination?.totalPages || 1)) break;
+      }
+
+      if (orders.length === 0) {
+        toast.error('Aucune commande à exporter avec ces filtres.');
+        return;
+      }
+
+      const csv = toCsv([
+        { header: 'Numéro', value: (o) => o.orderId },
+        { header: 'Date', value: (o) => new Date(o.createdAt).toLocaleString('fr-FR') },
+        { header: 'Client', value: (o) => o.user?.name || o.shippingAddress?.fullName || '' },
+        { header: 'Email', value: (o) => o.user?.email || '' },
+        { header: 'Statut', value: (o) => STATUS_LABELS[o.status] || o.status },
+        { header: 'Articles', value: (o) => (o.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) },
+        { header: 'Total (€)', value: (o) => formatAmount(o.totalAmount) }
+      ], orders);
+      downloadCsv(`commandes-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      toast.success(`${orders.length} commande${orders.length > 1 ? 's' : ''} exportée${orders.length > 1 ? 's' : ''}`);
+    } catch (error) {
+      toast.error(error?.message || "Impossible d'exporter les commandes.");
+    } finally {
+      setIsExportingOrders(false);
+    }
+  }
+
   // Rafraîchir la liste des commandes admin (avec filtres + pagination)
   async function loadAdminOrders() {
     setIsLoadingOrders(true);
     setOrdersError(null);
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: ordersCurrentPage,
         limit: ordersPerPage
@@ -201,9 +250,7 @@ const [topProducts, setTopProducts] = useState([]);
       if (orderDateFilter) params.set('startDate', orderDateFilter);
       if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
 
-      const res = await fetch(`/api/admin/orders?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
@@ -231,7 +278,6 @@ const [topProducts, setTopProducts] = useState([]);
       setIsLoadingOrders(true);
       setOrdersError(null);
       try {
-        const token = localStorage.getItem('token');
         const params = new URLSearchParams({
           page: ordersCurrentPage,
           limit: ordersPerPage
@@ -240,9 +286,7 @@ const [topProducts, setTopProducts] = useState([]);
         if (orderDateFilter) params.set('startDate', orderDateFilter);
         if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
 
-        const res = await fetch(`/api/admin/orders?${params.toString()}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
@@ -290,10 +334,7 @@ const [topProducts, setTopProducts] = useState([]);
     setOrderDetailError(null);
     setIsLoadingOrderDetail(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/orders/${orderId}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération du détail');
@@ -316,7 +357,10 @@ const [topProducts, setTopProducts] = useState([]);
         setSelectedNewStatus(order.availableTransitions[0]);
       }
     } catch (error) {
-      setOrderDetailError(error?.message || 'Impossible de charger le détail de la commande.');
+      const message = error?.message || 'Impossible de charger le détail de la commande.';
+      setOrderDetailError(message);
+      // La fenêtre ne s'ouvre pas sans commande : sans ce toast, l'erreur restait invisible
+      toast.error(message);
     } finally {
       setIsLoadingOrderDetail(false);
     }
@@ -327,12 +371,10 @@ const [topProducts, setTopProducts] = useState([]);
     if (!selectedOrder || !selectedNewStatus) return;
     setIsUpdatingStatus(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/orders/${selectedOrder.orderId}/status`, {
+      const res = await apiFetch(`/api/admin/orders/${selectedOrder.orderId}/status`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ newStatus: selectedNewStatus })
       });
@@ -359,7 +401,7 @@ const [topProducts, setTopProducts] = useState([]);
 
 // Badge de statut coloré (FonctionnalitéHaute#427)
   function getOrderStatusBadge(status) {
-    const label = STATUS_LABELS[status] || status || 'En préparation';
+    const label = STATUS_LABELS[status] || status || 'En attente de paiement';
     const color = STATUS_BADGES[status] || 'bg-gray-100 text-gray-700';
     return <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${color}`}>{label}</span>;
   }
@@ -382,16 +424,13 @@ const [topProducts, setTopProducts] = useState([]);
     setIsLoadingUsers(true);
     setUsersError(null);
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: usersCurrentPage,
         limit: usersPerPage
       });
       if (userSearchFilter.trim()) params.set('search', userSearchFilter.trim());
 
-      const res = await fetch(`/api/admin/users?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/users?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des clients');
@@ -419,16 +458,13 @@ const [topProducts, setTopProducts] = useState([]);
       setIsLoadingUsers(true);
       setUsersError(null);
       try {
-        const token = localStorage.getItem('token');
         const params = new URLSearchParams({
           page: usersCurrentPage,
           limit: usersPerPage
         });
         if (userSearchFilter.trim()) params.set('search', userSearchFilter.trim());
 
-        const res = await fetch(`/api/admin/users?${params.toString()}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/users?${params.toString()}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des clients');
@@ -474,10 +510,7 @@ const [topProducts, setTopProducts] = useState([]);
     setUserDetailError(null);
     setIsLoadingUserDetail(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/users/${userId}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération du profil client');
@@ -504,15 +537,13 @@ const [topProducts, setTopProducts] = useState([]);
     const targetActive = deactivateConfirmUser.isActive;
     setIsUpdatingUserActive(true);
     try {
-      const token = localStorage.getItem('token');
       const endpoint = targetActive
         ? `/api/admin/users/${userId}/deactivate`
         : `/api/admin/users/${userId}/reactivate`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       const data = await res.json();
@@ -538,12 +569,7 @@ const [topProducts, setTopProducts] = useState([]);
   // Rafraîchir la liste des produits (après création/édition)
   async function refreshProducts() {
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/admin/products?includeInactive=true', {
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
-          });
+          const res = await apiFetch('/api/admin/products?includeInactive=true');
           const data = await res.json();
           if (res.ok) {
               setProducts(data?.data?.products ?? []);
@@ -558,12 +584,8 @@ const [topProducts, setTopProducts] = useState([]);
       if (!deleteConfirmProduct) return;
       setIsDeletingProduct(true);
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`/api/admin/products/${deleteConfirmProduct.id}`, {
-              method: 'DELETE',
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
+          const res = await apiFetch(`/api/admin/products/${deleteConfirmProduct.id}`, {
+              method: 'DELETE'
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -608,12 +630,7 @@ const [topProducts, setTopProducts] = useState([]);
           setIsLoadingProducts(true);
           setProductsError(null);
           try {
-              const token = localStorage.getItem('token');
-              const res = await fetch('/api/admin/products?includeInactive=true', {
-                  headers: {
-                      'Authorization': `Bearer ${token}`
-                  }
-              });
+              const res = await apiFetch('/api/admin/products?includeInactive=true');
               const data = await res.json();
               if (!res.ok) {
                   throw new Error(data?.message || 'Erreur lors de la récupération des produits');
@@ -643,12 +660,7 @@ const [topProducts, setTopProducts] = useState([]);
   // Rafraîchir la liste des catégories (après création/édition/suppression)
   async function refreshCategories() {
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/admin/categories', {
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
-          });
+          const res = await apiFetch('/api/admin/categories');
           const data = await res.json();
           if (res.ok) {
               setCategories(data?.data?.categories ?? []);
@@ -663,12 +675,8 @@ const [topProducts, setTopProducts] = useState([]);
       if (!deleteConfirmCategory) return;
       setIsDeletingCategory(true);
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`/api/admin/categories/${deleteConfirmCategory.id}`, {
-              method: 'DELETE',
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
+          const res = await apiFetch(`/api/admin/categories/${deleteConfirmCategory.id}`, {
+              method: 'DELETE'
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -695,12 +703,7 @@ const [topProducts, setTopProducts] = useState([]);
           setIsLoadingCategories(true);
           setCategoriesError(null);
           try {
-              const token = localStorage.getItem('token');
-              const res = await fetch('/api/admin/categories', {
-                  headers: {
-                      'Authorization': `Bearer ${token}`
-                  }
-              });
+              const res = await apiFetch('/api/admin/categories');
               const data = await res.json();
               if (!res.ok) {
                   throw new Error(data?.message || 'Erreur lors de la récupération des catégories');
@@ -734,10 +737,7 @@ loadAdminCategories();
       setIsLoadingRevenue(true);
       setRevenueError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/admin/analytics/revenue?period=${revenuePeriod}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/analytics/revenue?period=${revenuePeriod}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des analytics');
@@ -770,10 +770,7 @@ loadAdminCategories();
       setIsLoadingTopProducts(true);
       setTopProductsError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/analytics/top-products?limit=10', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/analytics/top-products?limit=10');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération du top produits');
@@ -802,10 +799,7 @@ loadAdminCategories();
     setIsLoadingMetrics(true);
     setMetricsError(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/dashboard/metrics', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/dashboard/metrics');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des métriques');
@@ -829,10 +823,7 @@ loadAdminCategories();
     setIsLoadingRecentOrders(true);
     setRecentOrdersError(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/dashboard/recent-orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/dashboard/recent-orders');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des dernières commandes');
@@ -855,10 +846,7 @@ loadAdminCategories();
       setIsLoadingMetrics(true);
       setMetricsError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/dashboard/metrics', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/dashboard/metrics');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des métriques');
@@ -895,10 +883,7 @@ loadAdminCategories();
       setIsLoadingRecentOrders(true);
       setRecentOrdersError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/dashboard/recent-orders', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/dashboard/recent-orders');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des dernières commandes');
@@ -997,10 +982,10 @@ loadAdminCategories();
   const getStatusBadge = (status) => {
     switch(status) {
       case 'Livré': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">Livré</span>;
-      case 'En préparation': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">En préparation</span>;
+      case 'En attente de paiement': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">En attente de paiement</span>;
       case 'En transit': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">En transit</span>;
       case 'Annulé': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">Annulé</span>;
-      default: return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">{status || "En préparation"}</span>;
+      default: return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">{status || "En attente de paiement"}</span>;
     }
   };
 
@@ -1309,7 +1294,10 @@ loadAdminCategories();
                                 {recentOrders.slice(0, 5).map((order) => (
                                   <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-6 py-4 font-semibold text-indigo-600 text-sm">
-                                        <Link to={`/order-detail/${order.id}`}>{order.id}</Link>
+                                        {/* Fenêtre de détail admin : /order-detail ne montre que les commandes de l'utilisateur connecté */}
+                                        <button type="button" onClick={() => openOrderDetail(order.orderId || order.id)} className="hover:underline">
+                                          {order.id}
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{order.customer || "Client"}</td>
                                     <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
@@ -1406,11 +1394,12 @@ loadAdminCategories();
                               className="pl-10 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 shadow-sm appearance-none cursor-pointer"
                           >
                               <option value="">Tous les statuts</option>
-                              <option value="pending">En préparation</option>
+                              <option value="pending">En attente de paiement</option>
                               <option value="confirmed">Confirmée</option>
+                              <option value="processing">En préparation</option>
                               <option value="shipped">Expédiée</option>
                               <option value="delivered">Livrée</option>
-                              <option value="canceled">Annulée</option>
+                              <option value="cancelled">Annulée</option>
                           </select>
                       </div>
 
@@ -1447,6 +1436,16 @@ loadAdminCategories();
                               Réinitialiser
                           </button>
                       )}
+
+                      {/* Export CSV des commandes correspondant aux filtres */}
+                      <button
+                          onClick={exportOrdersCsv}
+                          disabled={isExportingOrders}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-white border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                          {isExportingOrders ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                          Exporter CSV
+                      </button>
                   </div>
                 </div>
 
@@ -2374,6 +2373,40 @@ confirmDisabled={
                       </div>
                     </div>
 </div>
+
+                  {/* Historique des états (cahier 03, §3.1) */}
+                  {selectedOrder.statusHistory?.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                        <History size={16} className="text-gray-400" />
+                        Historique des états
+                      </h3>
+                      <ol className="relative border-l border-gray-200 ml-2 space-y-4">
+                        {selectedOrder.statusHistory.map((entry, index) => (
+                          <li key={index} className="ml-4">
+                            <span className={`absolute -left-1.5 mt-1.5 w-3 h-3 rounded-full border-2 border-white ${STATUS_BADGES[entry.toStatus] || 'bg-gray-100'}`} />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGES[entry.toStatus] || 'bg-gray-100 text-gray-700'}`}>
+                                {STATUS_LABELS[entry.toStatus] || entry.toStatus}
+                              </span>
+                              {entry.fromStatus ? (
+                                <span className="text-xs text-gray-400">depuis « {STATUS_LABELS[entry.fromStatus] || entry.fromStatus} »</span>
+                              ) : (
+                                <span className="text-xs text-gray-400">création de la commande</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(entry.changedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}
+                              {' • '}
+                              {entry.changedBy
+                                ? `${entry.changedBy.name || entry.changedBy.email}${entry.changedBy.role === 'admin' ? ' (admin)' : ''}`
+                                : 'Système'}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2490,11 +2523,12 @@ confirmDisabled={
                           className="pl-8 pr-6 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 shadow-sm appearance-none cursor-pointer"
                         >
                           <option value="">Tous les statuts</option>
-                          <option value="pending">En préparation</option>
+                          <option value="pending">En attente de paiement</option>
                           <option value="confirmed">Confirmée</option>
+                          <option value="processing">En préparation</option>
                           <option value="shipped">Expédiée</option>
                           <option value="delivered">Livrée</option>
-                          <option value="canceled">Annulée</option>
+                          <option value="cancelled">Annulée</option>
                         </select>
                       </div>
                     </div>

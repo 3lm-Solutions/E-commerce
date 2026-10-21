@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Heart, Menu, X, ShoppingCart, User, Search } from "lucide-react";
 import useCartStore from "./store/cartStore";
@@ -6,11 +6,13 @@ import useAuth from "./store/useAuth";
 
 function Navbar() {
     const location = useLocation();
+    const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     
     const cart = useCartStore(state => state.cart);
     const wishList = useCartStore(state => state.wish);
+    const resetCart = useCartStore(state => state.reset);
     const { isAuthenticated, user, logout } = useAuth();
     
     const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -36,14 +38,15 @@ function Navbar() {
 
     const handleLogout = async () => {
         await logout();
+        resetCart();
         setIsUserMenuOpen(false);
+        navigate("/");
     };
 
     const navLinks = [
         { to: "/", label: "Accueil" },
         { to: "/products", label: "Produits" },
-        { to: "/orders", label: "Commandes", protected: true },
-        { to: "/deals", label: "Promotions" }
+        { to: "/orders", label: "Commandes", protected: true }
     ];
 
     return (
@@ -119,9 +122,6 @@ function Navbar() {
 
                                 {isUserMenuOpen && (
                                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-                                        <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                            Mon profil
-                                        </Link>
                                         <Link to="/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                                             Mes commandes
                                         </Link>
@@ -273,12 +273,6 @@ function Navbar() {
                                     <div className="px-4 py-2 text-sm text-gray-500">
                                         Connecté en tant que <span className="font-medium">{user?.name}</span>
                                     </div>
-                                    <Link
-                                        to="/profile"
-                                        className="block px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
-                                    >
-                                        Mon profil
-                                    </Link>
                                     {user?.role === 'admin' && (
                                         <Link
                                             to="/admin"

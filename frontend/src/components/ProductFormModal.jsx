@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { X, Plus, Loader2, ImagePlus, Trash2, Sparkles } from 'lucide-react';
+import { apiFetch, CHATBOT_URL } from '../lib/api';
 
 /**
  * Schéma de validation Zod reprenant les règles du backend
@@ -120,18 +121,14 @@ function ProductFormModal({ isOpen, onClose, product, onSuccess }) {
 
     setUploading(true);
     try {
-      const token = localStorage.getItem('token');
       const uploadedUrls = [];
 
       for (const file of files) {
         const formData = new FormData();
         formData.append('image', file);
 
-        const res = await fetch('/api/admin/products/upload-image', {
+        const res = await apiFetch('/api/admin/products/upload-image', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
           body: formData
         });
 
@@ -201,7 +198,7 @@ function ProductFormModal({ isOpen, onClose, product, onSuccess }) {
 
     setIsGeneratingDescription(true);
     try {
-      const res = await fetch('http://localhost:5000/ai/generate-description', {
+      const res = await fetch(`${CHATBOT_URL}/ai/generate-description`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -229,7 +226,6 @@ function ProductFormModal({ isOpen, onClose, product, onSuccess }) {
   async function onSubmit(values) {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
       const payload = {
         name: values.name,
         description: values.description || null,
@@ -243,11 +239,10 @@ function ProductFormModal({ isOpen, onClose, product, onSuccess }) {
 
       const isEdit = !!product;
       const url = isEdit ? `/api/admin/products/${product.id}` : '/api/admin/products';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });

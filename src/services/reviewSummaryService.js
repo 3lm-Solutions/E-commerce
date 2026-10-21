@@ -1,3 +1,4 @@
+    const crypto = require('crypto');
     const { Review, User } = require('../../models');
     const { getGroqClient, getGroqModel } = require('./groqClient');
 
@@ -13,14 +14,14 @@
     À partir d'une liste d'avis (note sur 5 + commentaire), tu dois produire un résumé structuré et répondre EXCLUSIVEMENT au format JSON, sans aucun texte avant ou après :
 
     {
-    "pros": string[],           // Exactement 3 avantages récurrents mentionnés par les clients (courts, en français)
-    "cons": string[],           // Exactement 3 inconvénients récurrents mentionnés par les clients (courts, en français)
+    "pros": string[],           // Jusqu'à 3 avantages mentionnés par les clients (courts, en français)
+    "cons": string[],           // Jusqu'à 3 inconvénients mentionnés par les clients (courts, en français)
     "rating_summary": string    // Une phrase de synthèse sur la satisfaction globale (1-2 phrases max)
     }
 
     Règles strictes :
     - Réponds UNIQUEMENT avec l'objet JSON, rien d'autre (pas de markdown, pas d'explication).
-    - "pros" et "cons" doivent contenir exactement 3 éléments chacun. S'il n'y a pas assez de matière pour 3 inconvénients distincts, complète avec des nuances mineures plutôt que d'inventer des critiques inexistantes.
+    - "pros" et "cons" contiennent de 0 à 3 éléments chacun. Ne mets QUE des points réellement exprimés dans les avis : si aucun client ne cite d'inconvénient, "cons" est une liste vide []. N'invente jamais un point et ne commente pas les avis eux-mêmes (pas de « avis trop court », « note non parfaite »).
     - Base-toi uniquement sur le contenu réel des avis fournis, ne fabrique pas d'informations absentes.
     - "rating_summary" doit refléter fidèlement le ton général des avis (positif, mitigé, négatif).
     - Ignore les avis sans commentaire texte exploitable pour les listes pros/cons, mais tiens compte de leur note pour le rating_summary.`;
@@ -34,6 +35,7 @@
     });
 
     return reviews.map((review) => ({
+        id: review.id,
         rating: review.rating,
         comment: review.comment || null,
         createdAt: review.created_at,
@@ -112,9 +114,39 @@
     return normalizeSummary(parsed);
     }
 
+    // Cache mémoire des résumés : un appel Groq seulement quand les avis changent.
+    // La clé est une empreinte des avis analysés (id, note, commentaire) : un avis
+    // ajouté, modifié ou supprimé change l'empreinte et relance la génération.
+    const MAX_CACHED_SUMMARIES = 500;
+    const summaryCache = new Map();
+
+    function reviewsFingerprint(reviews) {
+    const content = JSON.stringify(reviews.map((r) => [r.id, r.rating, r.comment]));
+    return crypto.createHash('sha1').update(content).digest('hex');
+    }
+
+    async function getCachedReviewSummary(productId, reviews) {
+    const fingerprint = reviewsFingerprint(reviews);
+    const cached = summaryCache.get(productId);
+    if (cached && cached.fingerprint === fingerprint) {
+        return { summary: cached.summary, cached: true };
+    }
+
+    const summary = await generateReviewSummary(reviews);
+
+    // Map garde l'ordre d'insertion : on retire la plus ancienne entrée au-delà de la limite
+    summaryCache.delete(productId);
+    summaryCache.set(productId, { fingerprint, summary });
+    if (summaryCache.size > MAX_CACHED_SUMMARIES) {
+        summaryCache.delete(summaryCache.keys().next().value);
+    }
+    return { summary, cached: false };
+    }
+
     module.exports = {
     getLatestReviews,
     generateReviewSummary,
+    getCachedReviewSummary,
     normalizeSummary,
     DEFAULT_REVIEWS_LIMIT
     };

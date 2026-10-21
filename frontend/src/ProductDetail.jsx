@@ -3,6 +3,10 @@ import { Link, useParams } from "react-router-dom";
 import { ShoppingCart, Heart, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "./store/cartStore";
+import useAuth from "./store/useAuth";
+import { apiFetch } from "./lib/api";
+import ReviewForm from "./components/ReviewForm";
+import NoReviews from "./components/NoReviews";
 
 function ProductDetail() {
     const addToCart = useCartStore((state) => state.addProductToCart);
@@ -22,6 +26,7 @@ function ProductDetail() {
     const [reviews, setReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
     const [errorReviews, setErrorReviews] = useState(null);
+    const [showReviewForm, setShowReviewForm] = useState(false);
 
     // Produits similaires
     const [produitSimilaire, setProduitSimilaire] = useState([]);
@@ -30,20 +35,9 @@ function ProductDetail() {
     const [images, setImage] = useState(0);
     const [ratingFilter, setRatingFilter] = useState(0);
 
-    const positiveKeywords = ["bon","excellent","recommande","top","rapide","qualité","parfait","génial","satisfait","fiable"];
-    const negativeKeywords = ["mauvais","déçu","lent","cher","problème","défaut","cassé","horrible","fragile"];
-
-    function getAiSummary(list) {
-        if (!list || list.length === 0) return { pros: [], cons: [] };
-        const prosSet = new Set();
-        const consSet = new Set();
-        list.forEach((r) => {
-            const text = (r.comment || "").toLowerCase();
-            positiveKeywords.forEach((k) => { if (text.includes(k)) prosSet.add(k); });
-            negativeKeywords.forEach((k) => { if (text.includes(k)) consSet.add(k); });
-        });
-        return { pros: [...prosSet].slice(0, 4), cons: [...consSet].slice(0, 4) };
-    }
+    // Résumé IA des avis (GET /api/products/:id/review-summary, Groq côté serveur)
+    // status : "idle" (pas d'avis) | "loading" | "ready" | "error" (bloc masqué)
+    const [aiSummary, setAiSummary] = useState({ status: "idle", pros: [], cons: [], ratingSummary: "" });
 
     const containerRef = useRef(null);
     const [isHovering, setIsHovering] = useState(false);
@@ -57,13 +51,14 @@ function ProductDetail() {
         setBgPos({ x, y });
     };
 
+    // Quantité entre 1 et le stock disponible
+    const stock = Number(product?.stock) || 0;
+    const outOfStock = stock <= 0;
     const handleQuantityPlus = () => {
-        setQuantity((q) => q + 1);
+        setQuantity((q) => Math.min(q + 1, Math.max(stock, 1)));
     };
     const handleQuantityMinus = () => {
-        if (quantity > 0) {
-            setQuantity((q) => q - 1);
-        }
+        setQuantity((q) => Math.max(q - 1, 1));
     };
 
     const handleImage = (index) => {
@@ -122,6 +117,65 @@ function ProductDetail() {
         };
     }, [id]);
 
+    // Enregistre la consultation (POST /events/view) pour alimenter "Vous aimerez aussi".
+    // Utilisateurs connectés uniquement ; une seule fois par produit (le ref évite le
+    // double envoi du double rendu de React StrictMode en développement).
+    const isAuthenticated = useAuth((state) => state.isAuthenticated);
+    const currentUser = useAuth((state) => state.user);
+    const loggedViewRef = useRef(null);
+    useEffect(() => {
+        if (!isAuthenticated || !product?.id || loggedViewRef.current === product.id) return;
+        loggedViewRef.current = product.id;
+
+        apiFetch("/events/view", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: product.id }),
+        })
+            .then((response) => {
+                if (!response.ok) console.error("events/view error: HTTP", response.status);
+            })
+            .catch((err) => console.error("events/view error:", err));
+    }, [isAuthenticated, product?.id]);
+
+    // Résumé IA : recalculé quand la liste des avis change (chargement, nouvel avis).
+    // Le serveur garde le résumé en cache tant que les avis ne changent pas.
+    const reviewsKey = reviews.map((r) => r.id).join(",");
+    useEffect(() => {
+        if (!id || loadingReviews || reviewsKey === "") {
+            setAiSummary({ status: "idle", pros: [], cons: [], ratingSummary: "" });
+            return;
+        }
+
+        let cancelled = false;
+        setAiSummary((prev) => ({ ...prev, status: "loading" }));
+
+        async function loadAiSummary() {
+            try {
+                const response = await fetch(`/api/products/${id}/review-summary`);
+                const data = await response.json();
+                if (cancelled) return;
+                if (!response.ok) throw new Error(data?.message || `HTTP ${response.status}`);
+
+                const summary = data?.data?.summary ?? {};
+                setAiSummary({
+                    status: "ready",
+                    pros: summary.pros ?? [],
+                    cons: summary.cons ?? [],
+                    ratingSummary: summary.rating_summary ?? "",
+                });
+            } catch (err) {
+                if (!cancelled) {
+                    console.error("review-summary error:", err);
+                    setAiSummary({ status: "error", pros: [], cons: [], ratingSummary: "" });
+                }
+            }
+        }
+
+        loadAiSummary();
+        return () => { cancelled = true; };
+    }, [id, loadingReviews, reviewsKey]);
+
     // Récupère les avis via GET /api/products/:id/reviews?limit=50 (indépendant du produit)
     useEffect(() => {
         if (!id) return;
@@ -130,6 +184,7 @@ function ProductDetail() {
         setLoadingReviews(true);
         setErrorReviews(null);
         setReviews([]);
+        setShowReviewForm(false);
 
         async function loadReviews() {
             try {
@@ -162,9 +217,10 @@ function ProductDetail() {
         };
     }, [id]);
 
-    // Produits similaires : GET /api/products?categoryId=...&limit=8 une fois le produit chargé
+    // Produits similaires : GET /recommendations/similar/:id (4 meilleurs scores :
+    // même catégorie, tags communs, prix proche), une fois le produit chargé
     useEffect(() => {
-        if (!product?.category?.id) {
+        if (!product?.id) {
             setProduitSimilaire([]);
             return;
         }
@@ -173,19 +229,14 @@ function ProductDetail() {
 
         async function loadSimilar() {
             try {
-                const response = await fetch(
-                    `/api/products?categoryId=${product.category.id}&limit=8`
-                );
+                const response = await fetch(`/recommendations/similar/${product.id}`);
                 const data = await response.json();
                 if (cancelled) return;
                 if (!response.ok) {
                     setProduitSimilaire([]);
                     return;
                 }
-                const list = data?.data?.products ?? data?.products ?? [];
-                // Exclut le produit courant
-                const others = list.filter((p) => String(p.id) !== String(product.id));
-                setProduitSimilaire(others);
+                setProduitSimilaire(data?.data?.similarProducts ?? []);
             } catch (err) {
                 if (!cancelled) {
                     console.error("Erreur chargement produits similaires:", err);
@@ -228,7 +279,13 @@ function ProductDetail() {
     const filteredReviews = ratingFilter === 0
         ? reviews
         : reviews.filter((r) => Math.round(Number(r.rating) || 0) === ratingFilter);
-    const aiSummary = getAiSummary(reviews);
+    // Le backend refuse un 2e avis (409) ; on masque le bouton si le sien est déjà dans la liste.
+    const hasReviewed = !!currentUser?.id && reviews.some((r) => r.user?.id === currentUser.id);
+
+    function handleReviewCreated(review) {
+        setShowReviewForm(false);
+        if (review) setReviews((prev) => [review, ...prev]);
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-2 py-8">
@@ -295,15 +352,21 @@ function ProductDetail() {
                                 {product.name}
                             </h1>
                             <div className="flex items-center gap-2 mt-5">
-                                <span className="text-yellow-400 text-lg">
-                                    ⭐⭐⭐⭐⭐
-                                </span>
-                                <span className="text-gray-600">
-                                    {Number(product.ratingAvg) || 0}
-                                </span>
-                                <span className="text-gray-400">
-                                    • {totalReviews} avis
-                                </span>
+                                {Number(product.ratingAvg) > 0 ? (
+                                    <>
+                                        <span className="text-yellow-400 text-lg">
+                                            {"⭐".repeat(Math.round(Number(product.ratingAvg)))}
+                                        </span>
+                                        <span className="text-gray-600">
+                                            {Number(product.ratingAvg)}
+                                        </span>
+                                        <span className="text-gray-400">
+                                            • {totalReviews} avis
+                                        </span>
+                                    </>
+                                ) : (
+                                    <NoReviews className="text-base" />
+                                )}
                             </div>
                             <h2 className="font-bold text-5xl mt-8">
                                 {product.price} €
@@ -312,32 +375,38 @@ function ProductDetail() {
                                 {product.description}
                             </p>
                             <div className="flex items-center gap-2 mt-7">
-                                <CheckCircle2
-                                    size={18}
-                                    className="text-green-600"
-                                />
-                                <p className="text-green-600 font-medium">
-                                    En stock ({product.stock} disponibles)
-                                </p>
+                                {outOfStock ? (
+                                    <p className="text-red-600 font-medium">Rupture de stock</p>
+                                ) : (
+                                    <>
+                                        <CheckCircle2
+                                            size={18}
+                                            className="text-green-600"
+                                        />
+                                        <p className="text-green-600 font-medium">
+                                            En stock ({product.stock} disponibles)
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             {/* Buttons */}
                             <div className="flex gap-4 mt-8">
                                 <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                                    <button className="px-5 py-4 hover:bg-gray-100" onClick={handleQuantityMinus}>
+                                    <button className="px-5 py-4 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" onClick={handleQuantityMinus} disabled={quantity <= 1}>
                                         -
                                     </button>
                                     <span className="px-5 font-medium">
                                         {quantity}
                                     </span>
-                                    <button className="px-5 py-4 hover:bg-gray-100" onClick={handleQuantityPlus}>
+                                    <button className="px-5 py-4 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" onClick={handleQuantityPlus} disabled={outOfStock || quantity >= stock}>
                                         +
                                     </button>
                                 </div>
 
-                                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition" onClick={() => addToCart(product, quantity)}>
+                                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900" onClick={() => addToCart(product, quantity)} disabled={outOfStock}>
                                     <ShoppingCart size={18} />
-                                    Ajouter au panier
+                                    {outOfStock ? "Indisponible" : "Ajouter au panier"}
                                 </button>
                                 <button className={`w-14 h-14 border rounded-xl flex items-center justify-center transition
                                         ${
@@ -352,16 +421,47 @@ function ProductDetail() {
             </div>
 
             <div className="mt-9">
-                <h2 className="text-2xl font-bold text-gray-900 mt-10">
-                    Avis clients
-                </h2>
+                <div className="flex items-center justify-between mt-10">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                        Avis clients
+                    </h2>
+                    {!isAuthenticated ? (
+                        <Link to="/login" className="text-sm text-indigo-600 hover:text-indigo-700">
+                            Connectez-vous pour laisser un avis
+                        </Link>
+                    ) : hasReviewed ? (
+                        <span className="text-sm text-gray-500">Vous avez déjà donné votre avis</span>
+                    ) : !showReviewForm && (
+                        <button
+                            type="button"
+                            onClick={() => setShowReviewForm(true)}
+                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700"
+                        >
+                            Rédiger un avis
+                        </button>
+                    )}
+                </div>
+
+                {showReviewForm && isAuthenticated && !hasReviewed && (
+                    <ReviewForm
+                        productId={product.id}
+                        onCreated={handleReviewCreated}
+                        onCancel={() => setShowReviewForm(false)}
+                    />
+                )}
 
                 {/* Note globale + répartition par étoile, cliquable pour filtrer */}
                 <div className="flex flex-col md:flex-row gap-8 mt-6 bg-white border border-gray-200 rounded-2xl p-6">
                     <div className="flex flex-col items-center justify-center md:w-48 md:border-r md:border-gray-100">
                         <span className="text-5xl font-bold text-gray-900">{avgRating}</span>
-                        <span className="text-yellow-400 text-lg mt-1">⭐⭐⭐⭐⭐</span>
-                        <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
+                        {totalReviews > 0 ? (
+                            <>
+                                <span className="text-yellow-400 text-lg mt-1">{"⭐".repeat(Math.round(Number(avgRating)))}</span>
+                                <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
+                            </>
+                        ) : (
+                            <NoReviews className="flex-col mt-1" />
+                        )}
                     </div>
 
                     <div className="flex-1 flex flex-col gap-2 justify-center">
@@ -395,18 +495,27 @@ function ProductDetail() {
                 </div>
 
                 {/* pros/cons */}
-                {(aiSummary.pros.length > 0 || aiSummary.cons.length > 0) && (
+                {aiSummary.status === "loading" && (
+                    <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex items-center gap-2 text-sm text-indigo-700">
+                        <Sparkles size={18} className="text-indigo-600 animate-pulse" />
+                        Analyse des avis…
+                    </div>
+                )}
+                {aiSummary.status === "ready" && (aiSummary.pros.length > 0 || aiSummary.cons.length > 0 || aiSummary.ratingSummary) && (
                     <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
                         <div className="flex items-center gap-2 mb-4">
                             <Sparkles size={18} className="text-indigo-600" />
                             <h3 className="font-semibold text-indigo-900">Résumé généré par IA</h3>
                         </div>
+                        {aiSummary.ratingSummary && (
+                            <p className="text-sm text-gray-700 mb-4">{aiSummary.ratingSummary}</p>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <p className="text-sm font-medium text-green-700 mb-2">Points forts</p>
                                 <ul className="space-y-1.5 text-sm text-gray-700">
                                     {aiSummary.pros.length > 0 ? aiSummary.pros.map((p, i) => (
-                                        <li key={i} className="flex items-start gap-2 capitalize">
+                                        <li key={i} className="flex items-start gap-2">
                                             <CheckCircle2 size={14} className="text-green-600 mt-0.5 shrink-0" />
                                             {p}
                                         </li>
@@ -417,7 +526,7 @@ function ProductDetail() {
                                 <p className="text-sm font-medium text-red-700 mb-2">Points faibles</p>
                                 <ul className="space-y-1.5 text-sm text-gray-700">
                                     {aiSummary.cons.length > 0 ? aiSummary.cons.map((c, i) => (
-                                        <li key={i} className="flex items-start gap-2 capitalize">
+                                        <li key={i} className="flex items-start gap-2">
                                             <AlertTriangle size={14} className="text-red-500 mt-0.5 shrink-0" />
                                             {c}
                                         </li>
@@ -476,9 +585,8 @@ function ProductDetail() {
                 <h2 className="text-2xl font-bold text-gray-900">Produits similaires</h2>
             </div>
 
-            <div className="grid grid-cols-4 gap-6 mt-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
                 {produitSimilaire.map((p) => {
-                    const pImages = Array.isArray(p.images) ? p.images : [];
                     return (
                         <Link
                             key={p.id}
@@ -486,7 +594,7 @@ function ProductDetail() {
                             className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition"
                         >
                             <img
-                                src={pImages[0]}
+                                src={p.image}
                                 alt={p.name}
                                 className="w-full h-52 object-cover"
                             />
@@ -501,9 +609,13 @@ function ProductDetail() {
                                     <span className="font-bold">
                                         {p.price} €
                                     </span>
-                                    <span>
-                                        ⭐ {Number(p.ratingAvg) || 0}
-                                    </span>
+                                    {Number(p.ratingAvg) > 0 ? (
+                                        <span>
+                                            ⭐ {Number(p.ratingAvg)}
+                                        </span>
+                                    ) : (
+                                        <NoReviews />
+                                    )}
                                 </div>
                             </div>
                         </Link>

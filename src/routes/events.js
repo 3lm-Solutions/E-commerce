@@ -1,11 +1,13 @@
 const express = require('express');
 const EventController = require('../controllers/eventController');
 const { validateLogView, validateLogPurchase } = require('../validators/eventValidator');
+const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/view', validateLogView, EventController.logView);
+// Authentification requise : l'utilisateur est lu depuis le token, pas depuis le body
+router.post('/view', verifyToken, validateLogView, EventController.logView);
 
-router.post('/purchase', validateLogPurchase, EventController.logPurchase);
+router.post('/purchase', verifyToken, validateLogPurchase, EventController.logPurchase);
 
 module.exports = router;

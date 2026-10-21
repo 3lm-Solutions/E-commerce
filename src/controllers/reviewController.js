@@ -279,8 +279,9 @@ ReviewController.getReviewSummary = async (req, res) => {
     }
  
     let summary;
+    let cached;
     try {
-      summary = await reviewSummaryService.generateReviewSummary(reviews);
+      ({ summary, cached } = await reviewSummaryService.getCachedReviewSummary(productId, reviews));
     } catch (groqError) {
       console.error('Erreur Groq lors du résumé des avis:', groqError.message);
       return res.status(502).json({
@@ -295,6 +296,7 @@ ReviewController.getReviewSummary = async (req, res) => {
       data: {
         productId,
         reviewsAnalyzed: reviews.length,
+        cached,
         summary
       }
     });

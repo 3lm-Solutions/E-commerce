@@ -25,8 +25,6 @@ const verifyToken = (req, res, next) => {
       return handleAuthFailure(req, res, 401, 'Token manquant');
     }
 
-    console.log("VERIFY SECRET =", process.env.JWT_SECRET);
-
     // Vérifier la signature JWT avec la clé secrète
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key');
 

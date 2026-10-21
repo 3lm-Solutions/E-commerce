@@ -1,0 +1,42 @@
+[
+  {
+    "id": "30000000-0000-4000-8000-000000000001",
+    "fixture_key": "c_001",
+    "name": "Électronique",
+    "description": "Smartphones, ordinateurs, tablettes et accessoires électroniques",
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  },
+  {
+    "id": "30000000-0000-4000-8000-000000000002",
+    "fixture_key": "c_002",
+    "name": "Livres & Média",
+    "description": "Livres, films, musique et produits culturels",
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  },
+  {
+    "id": "30000000-0000-4000-8000-000000000003",
+    "fixture_key": "c_003",
+    "name": "Maison & Jardin",
+    "description": "Décoration, meubles, outils de jardinage et électroménager",
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  },
+  {
+    "id": "30000000-0000-4000-8000-000000000004",
+    "fixture_key": "c_004",
+    "name": "Sports & Loisirs",
+    "description": "Équipements sportifs, jeux et articles de loisirs",
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  },
+  {
+    "id": "30000000-0000-4000-8000-000000000005",
+    "fixture_key": "c_005",
+    "name": "Vêtements",
+    "description": "Mode masculine et féminine, chaussures et accessoires",
+    "created_at": "2026-09-01T09:00:00.000Z",
+    "updated_at": "2026-09-01T09:00:00.000Z"
+  }
+]

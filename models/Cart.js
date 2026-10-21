@@ -68,10 +68,11 @@ module.exports = (sequelize) => {
    * Méthode d'instance pour vider le panier
    * @returns {Promise<void>}
    */
-  Cart.prototype.clear = async function() {
-    // Supprimer tous les items du panier
+  Cart.prototype.clear = async function(options = {}) {
+    // Supprimer tous les items du panier (options.transaction : création de commande)
     await sequelize.models.CartItem.destroy({
-      where: { cartId: this.id }
+      where: { cartId: this.id },
+      transaction: options.transaction
     });
     
     console.log(`🗑️ Panier ${this.id} vidé (clear() appelé)`);

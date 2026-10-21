@@ -6,16 +6,9 @@ const { body } = require('express-validator');
 
 /**
  * Validation pour POST /events/view
- * Body attendu: { user_id, product_id, session_id? }
+ * Body attendu: { product_id, session_id? } (utilisateur lu depuis le token)
  */
 const validateLogView = [
-  body('user_id')
-    .exists({ checkFalsy: true })
-    .withMessage('user_id est obligatoire')
-    .bail()
-    .isUUID(4)
-    .withMessage('user_id doit être un UUID valide'),
-
   body('product_id')
     .exists({ checkFalsy: true })
     .withMessage('product_id est obligatoire')
@@ -32,16 +25,9 @@ const validateLogView = [
 
 /**
  * Validation pour POST /events/purchase
- * Body attendu: { user_id, product_ids: [], total_amount, session_id? }
+ * Body attendu: { product_ids: [], total_amount, session_id? } (utilisateur lu depuis le token)
  */
 const validateLogPurchase = [
-  body('user_id')
-    .exists({ checkFalsy: true })
-    .withMessage('user_id est obligatoire')
-    .bail()
-    .isUUID(4)
-    .withMessage('user_id doit être un UUID valide'),
-
   body('product_ids')
     .exists()
     .withMessage('product_ids est obligatoire')

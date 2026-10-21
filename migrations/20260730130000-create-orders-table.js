@@ -18,6 +18,22 @@ module.exports = {
       console.log('ℹ️ Type ENUM "enum_orders_status" existe déjà');
     }
 
+    // Si la table existe déjà (créée par create-complete-ecommerce-schema),
+    // createTable ne ferait rien et les index sur order_id / tracking_number
+    // échoueraient : ces colonnes et leurs index sont ajoutés par la migration
+    // suivante (update-orders-table-state-machine). On ajoute seulement l'index created_at.
+    const tables = await queryInterface.showAllTables();
+    if (tables.includes('orders')) {
+      const existingIndexes = (await queryInterface.showIndex('orders')).map((index) => index.name);
+      if (!existingIndexes.includes('orders_created_at_idx')) {
+        await queryInterface.addIndex('orders', ['created_at'], {
+          name: 'orders_created_at_idx'
+        });
+      }
+      console.log('ℹ️ Table orders déjà existante, colonnes ajoutées par la migration suivante');
+      return;
+    }
+
     // Créer la table orders
     await queryInterface.createTable('orders', {
       id: {

@@ -1,297 +1,228 @@
-const request = require('supertest');
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const { sequelize } = require('../../config/sequelize');
-const Order = require('../../models/Order')(sequelize);
-const User = require('../../models/User')(sequelize);
-
-// Import routes and middleware
-const orderRoutes = require('../routes/orders');
-const { verifyToken } = require('../middleware/auth');
-
-// Create test app
-const app = express();
-app.use(express.json());
-app.use('/api/orders', orderRoutes);
-
 /**
- * Tests pour FonctionnalitéMoyenne#1782 - Annulation et suivi des commandes
- * Couvre cancelOrder et getOrderTracking
+ * Tests d'intégration : annulation, suivi, machine à états et historique des
+ * commandes (cahier 02, §2.4 et §3 ; cahier 03, §3.1), sur la vraie
+ * application et la base de test. Préparer la base une fois : npm run test:db
  */
-describe('Order Cancellation and Tracking - FonctionnalitéMoyenne#1782', () => {
-  let testUser;
-  let testOrder;
-  let authToken;
+const request = require('supertest');
+const jwt = require('jsonwebtoken');
+const { randomUUID } = require('crypto');
+const app = require('../app');
+const { Order, OrderStatusHistory, User, Product, Category, sequelize } = require('../../models');
 
-  beforeAll(async () => {
-    // Ensure database is connected
-    await sequelize.authenticate();
-    
-    // Create test user
-    testUser = await User.create({
-      id: 'test-user-id',
-      email: 'test@example.com',
-      password: 'hashedpassword',
-      firstName: 'Test',
-      lastName: 'User'
-    });
+const PREFIX = 'jest-orders-';
+let client;
+let otherClient;
+let admin;
+let category;
+let product;
+let order;
+let seq = 0;
 
-    // Generate auth token
-    authToken = jwt.sign(
-      { id: testUser.id, email: testUser.email },
-      process.env.JWT_SECRET || 'test-secret',
-      { expiresIn: '1h' }
-    );
+const tokenFor = (user) => jwt.sign(
+  { userId: user.id, email: user.email, role: user.role },
+  process.env.JWT_SECRET,
+  { expiresIn: '1h' }
+);
+const auth = (user) => ({ Authorization: `Bearer ${tokenFor(user)}` });
+
+const createUser = (role) => User.create({
+  id: randomUUID(),
+  email: `${PREFIX}${role}-${Date.now()}-${++seq}@example.com`,
+  password: 'hash-de-test',
+  name: `Test ${role}`,
+  role
+});
+
+// Commande « réservée » : le stock a déjà été décrémenté, comme le fait createOrder
+async function createOrder(quantity = 2) {
+  await product.decrement('stock', { by: quantity });
+  return Order.create({
+    id: randomUUID(),
+    orderId: `ORD-TEST-${Date.now()}-${++seq}`,
+    userId: client.id,
+    items: [{ productId: product.id, name: product.name, price: 29.99, quantity, total: 29.99 * quantity, stockReserved: true }],
+    totalAmount: 29.99 * quantity,
+    status: 'pending',
+    shippingAddress: { fullName: 'Test', address: '1 rue Test', city: 'Paris', postalCode: '75001' }
   });
+}
 
-  beforeEach(async () => {
-    // Create fresh test order before each test
-    testOrder = await Order.create({
-      id: 'test-order-id',
-      orderId: 'ORD-TEST-12345',
-      userId: testUser.id,
-      items: [
-        { productId: 'prod-1', quantity: 2, price: 29.99, name: 'Test Product' }
-      ],
-      totalAmount: 59.98,
-      status: 'pending'
-    });
-  });
+const stock = async () => (await Product.findByPk(product.id)).stock;
+const historyOf = async (o) => (await OrderStatusHistory.findAll({ where: { orderId: o.id }, order: [['created_at', 'ASC']] }))
+  .map((h) => `${h.fromStatus || '∅'}>${h.toStatus}`);
 
-  afterEach(async () => {
-    // Clean up test orders
-    await Order.destroy({ where: { userId: testUser.id } });
-  });
-
-  afterAll(async () => {
-    // Clean up test user
-    await User.destroy({ where: { id: testUser.id } });
-    await sequelize.close();
-  });
-
-  describe('PUT /api/orders/:orderId/cancel - Sous-tâche 1 & 2', () => {
-    test('✅ Should successfully cancel pending order - cancelOrder method', async () => {
-      const response = await request(app)
-        .put(`/api/orders/${testOrder.orderId}/cancel`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ reason: 'Changed my mind' });
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Commande annulée avec succès');
-      expect(response.body.data).toMatchObject({
-        orderId: testOrder.orderId,
-        previousStatus: 'pending',
-        currentStatus: 'canceled',
-        reason: 'Changed my mind'
-      });
-      expect(response.body.data.canceledAt).toBeTruthy();
-
-      // Verify database state
-      const updatedOrder = await Order.findOne({ where: { orderId: testOrder.orderId } });
-      expect(updatedOrder.status).toBe('canceled');
-      expect(updatedOrder.canceledAt).toBeTruthy();
-      expect(updatedOrder.notes).toContain('Raison d\'annulation: Changed my mind');
-    });
-
-    test('❌ Should reject cancellation of non-pending order', async () => {
-      // First, update order to confirmed status
-      await testOrder.updateStatus('confirmed');
-
-      const response = await request(app)
-        .put(`/api/orders/${testOrder.orderId}/cancel`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ reason: 'Test reason' });
-
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain('Impossible d\'annuler une commande avec le statut "confirmed"');
-      expect(response.body.data.currentStatus).toBe('confirmed');
-      expect(response.body.data.cancelable).toBe(false);
-    });
-
-    test('❌ Should reject cancellation without authentication', async () => {
-      const response = await request(app)
-        .put(`/api/orders/${testOrder.orderId}/cancel`)
-        .send({ reason: 'Test reason' });
-
-      expect(response.status).toBe(401);
-    });
-
-    test('❌ Should reject cancellation of non-existent order', async () => {
-      const response = await request(app)
-        .put('/api/orders/NON-EXISTENT-ORDER/cancel')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({ reason: 'Test reason' });
-
-      expect(response.status).toBe(404);
-      expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe('Commande non trouvée ou accès non autorisé');
-    });
-
-    test('✅ Should cancel without reason (optional field)', async () => {
-      const response = await request(app)
-        .put(`/api/orders/${testOrder.orderId}/cancel`)
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({});
-
-      expect(response.status).toBe(200);
-      expect(response.body.data.reason).toBeNull();
-    });
-  });
-
-  describe('GET /api/orders/:orderId/tracking - Sous-tâche 3', () => {
-    test('✅ Should return tracking info for pending order - getOrderTracking method', async () => {
-      const response = await request(app)
-        .get(`/api/orders/${testOrder.orderId}/tracking`)
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toMatchObject({
-        orderId: testOrder.orderId,
-        status: 'pending',
-        confirmedAt: null,
-        shippedAt: null,
-        deliveredAt: null,
-        canceledAt: null
-      });
-      expect(response.body.data.createdAt).toBeTruthy();
-      expect(response.body.data.progress).toMatchObject({
-        isCompleted: false,
-        isCanceled: false,
-        currentStep: 'pending'
-      });
-    });
-
-    test('✅ Should return tracking info for canceled order', async () => {
-      // Cancel the order first
-      await testOrder.updateStatus('canceled');
-
-      const response = await request(app)
-        .get(`/api/orders/${testOrder.orderId}/tracking`)
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.data).toMatchObject({
-        orderId: testOrder.orderId,
-        status: 'canceled',
-        confirmedAt: null,
-        shippedAt: null,
-        deliveredAt: null
-      });
-      expect(response.body.data.canceledAt).toBeTruthy();
-      expect(response.body.data.progress).toMatchObject({
-        isCompleted: true,
-        isCanceled: true,
-        currentStep: 'canceled'
-      });
-    });
-
-    test('✅ Should return complete timeline for delivered order', async () => {
-      // Simulate full order lifecycle
-      await testOrder.updateStatus('confirmed');
-      await testOrder.updateStatus('shipped');
-      await testOrder.updateStatus('delivered');
-
-      const response = await request(app)
-        .get(`/api/orders/${testOrder.orderId}/tracking`)
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('delivered');
-      expect(response.body.data.confirmedAt).toBeTruthy();
-      expect(response.body.data.shippedAt).toBeTruthy();
-      expect(response.body.data.deliveredAt).toBeTruthy();
-      expect(response.body.data.trackingNumber).toBeTruthy();
-      expect(response.body.data.progress.isCompleted).toBe(true);
-    });
-
-    test('❌ Should reject tracking without authentication', async () => {
-      const response = await request(app)
-        .get(`/api/orders/${testOrder.orderId}/tracking`);
-
-      expect(response.status).toBe(401);
-    });
-
-    test('❌ Should reject tracking for non-existent order', async () => {
-      const response = await request(app)
-        .get('/api/orders/NON-EXISTENT-ORDER/tracking')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      expect(response.status).toBe(404);
-      expect(response.body.success).toBe(false);
-      expect(response.body.message).toBe('Commande non trouvée ou accès non autorisé');
-    });
-  });
-
-  describe('Order State Machine Validation', () => {
-    test('✅ Should validate state transitions correctly', async () => {
-      // Test valid transitions
-      await testOrder.updateStatus('confirmed');
-      expect(testOrder.status).toBe('confirmed');
-      expect(testOrder.confirmedAt).toBeTruthy();
-
-      await testOrder.updateStatus('shipped');
-      expect(testOrder.status).toBe('shipped');
-      expect(testOrder.shippedAt).toBeTruthy();
-      expect(testOrder.trackingNumber).toBeTruthy();
-
-      await testOrder.updateStatus('delivered');
-      expect(testOrder.status).toBe('delivered');
-      expect(testOrder.deliveredAt).toBeTruthy();
-    });
-
-    test('❌ Should reject invalid state transitions', async () => {
-      // Try to go directly from pending to shipped
-      await expect(testOrder.updateStatus('shipped')).rejects.toThrow(
-        'Transition de statut invalide'
-      );
-
-      // Try to go from confirmed back to pending
-      await testOrder.updateStatus('confirmed');
-      await expect(testOrder.updateStatus('pending')).rejects.toThrow(
-        'Transition de statut invalide'
-      );
-    });
-
-    test('✅ Should allow cancellation only from pending', async () => {
-      // Should work from pending
-      expect(testOrder.isCancelable()).toBe(true);
-      await testOrder.updateStatus('canceled');
-      expect(testOrder.status).toBe('canceled');
-
-      // Reset for next test
-      testOrder.status = 'confirmed';
-      expect(testOrder.isCancelable()).toBe(false);
-    });
-
-    test('✅ Should mark canceled and delivered as completed', async () => {
-      expect(testOrder.isCompleted()).toBe(false);
-
-      await testOrder.updateStatus('canceled');
-      expect(testOrder.isCompleted()).toBe(true);
-
-      // Test with delivered status
-      const deliveredOrder = await Order.create({
-        id: 'delivered-order-id',
-        orderId: 'ORD-DELIVERED-123',
-        userId: testUser.id,
-        items: [{ productId: 'prod-1', quantity: 1, price: 10.00 }],
-        totalAmount: 10.00,
-        status: 'pending'
-      });
-
-      await deliveredOrder.updateStatus('confirmed');
-      await deliveredOrder.updateStatus('shipped');
-      await deliveredOrder.updateStatus('delivered');
-      expect(deliveredOrder.isCompleted()).toBe(true);
-    });
+beforeAll(async () => {
+  client = await createUser('client');
+  otherClient = await createUser('client');
+  admin = await createUser('admin');
+  category = await Category.create({ id: randomUUID(), name: `${PREFIX}cat-${Date.now()}` });
+  product = await Product.create({
+    id: randomUUID(), name: `${PREFIX}produit`, description: 'Produit de test', price: 29.99,
+    stock: 50, categoryId: category.id, images: [], tags: [], isActive: true
   });
 });
 
-console.log('🧪 Order Cancellation and Tracking Tests - FonctionnalitéMoyenne#1782');
-console.log('📋 Tests cover all 3 sub-tasks:');
-console.log('  ✅ Sous-tâche 1: PUT /orders/:id/cancel validation');
-console.log('  ✅ Sous-tâche 2: canceledAt field and canceled status');
-console.log('  ✅ Sous-tâche 3: GET /orders/:id/tracking endpoint');
+beforeEach(async () => {
+  order = await createOrder();
+});
+
+afterAll(async () => {
+  const userIds = [client, otherClient, admin].map((u) => u.id);
+  await Order.destroy({ where: { userId: userIds } }); // l'historique suit (ON DELETE CASCADE)
+  await Product.destroy({ where: { id: product.id } });
+  await Category.destroy({ where: { id: category.id } });
+  await User.destroy({ where: { id: userIds } });
+  await sequelize.close();
+});
+
+describe('PUT /api/orders/:orderId/cancel', () => {
+  test('annule une commande en attente, remet le stock et enregistre l\'historique', async () => {
+    const before = await stock();
+    const res = await request(app)
+      .put(`/api/orders/${order.orderId}/cancel`)
+      .set(auth(client))
+      .send({ reason: "J'ai changé d'avis" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      orderId: order.orderId,
+      previousStatus: 'pending',
+      currentStatus: 'cancelled',
+      reason: "J'ai changé d'avis"
+    });
+    expect(res.body.data.cancelledAt).toBeTruthy();
+
+    const updated = await Order.findByPk(order.id);
+    expect(updated.status).toBe('cancelled');
+    expect(updated.notes).toContain("Raison d'annulation: J'ai changé d'avis");
+    expect(await stock()).toBe(before + 2);
+
+    const history = await OrderStatusHistory.findAll({ where: { orderId: order.id }, order: [['created_at', 'ASC']] });
+    expect(history.map((h) => h.toStatus)).toEqual(['pending', 'cancelled']);
+    expect(history[1].changedBy).toBe(client.id);
+  });
+
+  test('sans raison (champ facultatif)', async () => {
+    const res = await request(app).put(`/api/orders/${order.orderId}/cancel`).set(auth(client)).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.data.reason).toBeNull();
+  });
+
+  test('400 si la commande n\'est plus en attente, sans toucher au stock', async () => {
+    await order.updateStatus('confirmed');
+    const before = await stock();
+    const res = await request(app).put(`/api/orders/${order.orderId}/cancel`).set(auth(client));
+    expect(res.status).toBe(400);
+    expect(res.body.data).toMatchObject({ currentStatus: 'confirmed', cancelable: false });
+    expect(await stock()).toBe(before);
+  });
+
+  test('une seconde annulation est refusée et ne remet pas le stock deux fois', async () => {
+    await request(app).put(`/api/orders/${order.orderId}/cancel`).set(auth(client));
+    const before = await stock();
+    const res = await request(app).put(`/api/orders/${order.orderId}/cancel`).set(auth(client));
+    expect(res.status).toBe(400);
+    expect(await stock()).toBe(before);
+  });
+
+  test('401 sans token', async () => {
+    const res = await request(app).put(`/api/orders/${order.orderId}/cancel`);
+    expect(res.status).toBe(401);
+  });
+
+  test('404 pour la commande d\'un autre client', async () => {
+    const res = await request(app).put(`/api/orders/${order.orderId}/cancel`).set(auth(otherClient));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/orders/:orderId/tracking', () => {
+  test('commande en attente', async () => {
+    const res = await request(app).get(`/api/orders/${order.orderId}/tracking`).set(auth(client));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      status: 'pending', confirmedAt: null, processingAt: null, shippedAt: null, deliveredAt: null, cancelledAt: null
+    });
+    expect(res.body.data.progress.timeline.map((s) => s.step))
+      .toEqual(['pending', 'confirmed', 'processing', 'shipped', 'delivered']);
+  });
+
+  test('commande livrée : toutes les étapes datées, numéro de suivi', async () => {
+    for (const status of ['confirmed', 'processing', 'shipped', 'delivered']) {
+      await order.updateStatus(status, { changedBy: admin.id });
+    }
+    const res = await request(app).get(`/api/orders/${order.orderId}/tracking`).set(auth(client));
+    expect(res.status).toBe(200);
+    expect(res.body.data.trackingNumber).toBeTruthy();
+    expect(res.body.data.progress.isCompleted).toBe(true);
+    expect(res.body.data.progress.timeline.every((s) => s.completed && s.date)).toBe(true);
+  });
+
+  test('commande annulée : frise réduite', async () => {
+    await order.updateStatus('cancelled', { changedBy: client.id });
+    const res = await request(app).get(`/api/orders/${order.orderId}/tracking`).set(auth(client));
+    expect(res.body.data.progress).toMatchObject({ isCancelled: true, currentStep: 'cancelled' });
+    expect(res.body.data.progress.timeline.map((s) => s.step)).toEqual(['pending', 'cancelled']);
+  });
+});
+
+describe('Machine à états', () => {
+  test('pending -> confirmed -> processing -> shipped -> delivered', async () => {
+    await order.updateStatus('confirmed');
+    expect(order.confirmedAt).toBeTruthy();
+    await order.updateStatus('processing');
+    expect(order.processingAt).toBeTruthy();
+    await order.updateStatus('shipped');
+    expect(order.shippedAt).toBeTruthy();
+    expect(order.trackingNumber).toBeTruthy();
+    await order.updateStatus('delivered');
+    expect(order.deliveredAt).toBeTruthy();
+    expect(order.isCompleted()).toBe(true);
+  });
+
+  test.each([
+    [[], 'shipped'],
+    [['confirmed'], 'shipped'],
+    [['confirmed'], 'pending'],
+    [['confirmed'], 'cancelled'],
+    [['confirmed', 'processing'], 'cancelled']
+  ])('refuse la transition après %j vers %s', async (steps, target) => {
+    for (const status of steps) await order.updateStatus(status);
+    await expect(order.updateStatus(target)).rejects.toThrow('Transition de statut invalide');
+  });
+
+  test('l\'ancien état « canceled » n\'existe plus', async () => {
+    await expect(order.updateStatus('canceled')).rejects.toThrow('Transition de statut invalide');
+  });
+});
+
+describe('Historique des états', () => {
+  test('une ligne à la création, puis une par changement (pas pour une transition refusée)', async () => {
+    await order.updateStatus('confirmed');
+    await expect(order.updateStatus('shipped')).rejects.toThrow();
+    await order.updateStatus('processing', { changedBy: admin.id });
+    expect(await historyOf(order)).toEqual(['∅>pending', 'pending>confirmed', 'confirmed>processing']);
+  });
+
+  test('GET /api/admin/orders/:orderId renvoie l\'historique avec ses auteurs', async () => {
+    await order.updateStatus('confirmed');
+    await request(app)
+      .put(`/api/admin/orders/${order.orderId}/status`)
+      .set(auth(admin))
+      .send({ newStatus: 'processing' })
+      .expect(200);
+
+    const res = await request(app).get(`/api/admin/orders/${order.orderId}`).set(auth(admin));
+    expect(res.status).toBe(200);
+    const history = res.body.data.statusHistory;
+    expect(history.map((h) => h.toStatus)).toEqual(['pending', 'confirmed', 'processing']);
+    expect(history[0].changedBy.email).toBe(client.email);
+    expect(history[1].changedBy).toBeNull(); // système
+    expect(history[2].changedBy).toMatchObject({ email: admin.email, role: 'admin' });
+  });
+
+  test('l\'historique d\'une commande n\'est pas accessible à un client', async () => {
+    const res = await request(app).get(`/api/admin/orders/${order.orderId}`).set(auth(client));
+    expect(res.status).toBe(403);
+  });
+});

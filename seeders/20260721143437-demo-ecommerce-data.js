@@ -7,33 +7,33 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const now = new Date();
 
-    // 1. Insérer des catégories
-    const categoryIds = {
-      electronics: uuidv4(),
-      clothing: uuidv4(),
-      books: uuidv4()
+    // 1. Catégories : réutiliser celles du seeder catalogue (même nom) et
+    // ne créer que celles qui manquent, pour éviter les doublons.
+    const categoryNames = {
+      electronics: 'Électronique',
+      clothing: 'Vêtements',
+      books: 'Livres & Média'
     };
 
-    await queryInterface.bulkInsert('categories', [
-      {
-        id: categoryIds.electronics,
-        name: 'Électronique',
-        created_at: now,
-        updated_at: now
-      },
-      {
-        id: categoryIds.clothing,
-        name: 'Vêtements',
-        created_at: now,
-        updated_at: now
-      },
-      {
-        id: categoryIds.books,
-        name: 'Livres',
-        created_at: now,
-        updated_at: now
+    const existing = await queryInterface.sequelize.query(
+      'SELECT id, name FROM categories WHERE name IN (:names)',
+      { replacements: { names: Object.values(categoryNames) }, type: Sequelize.QueryTypes.SELECT }
+    );
+    const idByName = Object.fromEntries(existing.map((c) => [c.name, c.id]));
+
+    const categoryIds = {};
+    const missingCategories = [];
+    for (const [key, name] of Object.entries(categoryNames)) {
+      if (!idByName[name]) {
+        idByName[name] = uuidv4();
+        missingCategories.push({ id: idByName[name], name, created_at: now, updated_at: now });
       }
-    ], {});
+      categoryIds[key] = idByName[name];
+    }
+
+    if (missingCategories.length) {
+      await queryInterface.bulkInsert('categories', missingCategories, {});
+    }
 
     // 2. Insérer des utilisateurs
     const userIds = {
@@ -87,10 +87,10 @@ module.exports = {
         id: productIds.laptop,
         name: 'MacBook Pro 14"',
         description: 'Ordinateur portable haute performance avec puce M2',
-        price: 2499.99,
+        price: 2499.00,
         stock: 10,
         category_id: categoryIds.electronics,
-        images: ['https://example.com/laptop1.jpg', 'https://example.com/laptop2.jpg'],
+        images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800'],
         tags: ['laptop', 'apple', 'performance'],
         rating_avg: 4.5,
         rating_count: 12,
@@ -102,10 +102,10 @@ module.exports = {
         id: productIds.phone,
         name: 'iPhone 15 Pro',
         description: 'Dernier iPhone avec caméra professionnelle',
-        price: 1199.99,
+        price: 1229.00,
         stock: 25,
         category_id: categoryIds.electronics,
-        images: ['https://example.com/phone1.jpg'],
+        images: ['https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800'],
         tags: ['smartphone', 'apple', 'camera'],
         rating_avg: 4.8,
         rating_count: 34,
@@ -120,7 +120,7 @@ module.exports = {
         price: 29.99,
         stock: 100,
         category_id: categoryIds.clothing,
-        images: ['https://example.com/tshirt1.jpg', 'https://example.com/tshirt2.jpg'],
+        images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800'],
         tags: ['tshirt', 'coton', 'bio'],
         rating_avg: 4.2,
         rating_count: 8,
@@ -135,7 +135,7 @@ module.exports = {
         price: 79.99,
         stock: 50,
         category_id: categoryIds.clothing,
-        images: ['https://example.com/jeans1.jpg'],
+        images: ['https://images.unsplash.com/photo-1604176354204-9268737828e4?w=800'],
         tags: ['jeans', 'denim', 'confort'],
         rating_avg: 4.0,
         rating_count: 15,
@@ -150,7 +150,7 @@ module.exports = {
         price: 39.99,
         stock: 30,
         category_id: categoryIds.books,
-        images: ['https://example.com/book1.jpg'],
+        images: ['https://images.unsplash.com/photo-1589998059171-988d887df646?w=800'],
         tags: ['javascript', 'programming', 'web'],
         rating_avg: 4.7,
         rating_count: 45,
@@ -165,7 +165,7 @@ module.exports = {
         price: 49.99,
         stock: 20,
         category_id: categoryIds.books,
-        images: ['https://example.com/book2.jpg'],
+        images: ['https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800'],
         tags: ['nodejs', 'backend', 'patterns'],
         rating_avg: 4.6,
         rating_count: 23,
@@ -231,7 +231,7 @@ module.exports = {
         cart_id: cartIds.cart1,
         product_id: productIds.laptop,
         quantity: 1,
-        price: 2499.99,
+        price: 2499.00,
         created_at: now,
         updated_at: now
       },
@@ -249,7 +249,7 @@ module.exports = {
         cart_id: cartIds.cart2,
         product_id: productIds.phone,
         quantity: 1,
-        price: 1199.99,
+        price: 1229.00,
         created_at: now,
         updated_at: now
       }
@@ -259,6 +259,7 @@ module.exports = {
     await queryInterface.bulkInsert('orders', [
       {
         id: uuidv4(),
+        order_id: 'ORD-DEMO-0001', // Obligatoire depuis update-orders-table-state-machine
         user_id: userIds.client2,
         items: JSON.stringify([
           {

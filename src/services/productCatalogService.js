@@ -16,7 +16,10 @@ const { Product, Category } = require('../../models');
 const MAX_CATALOG_PRODUCTS = 20;
 
 // Devise utilisée pour l'affichage des prix dans le catalogue
-const CURRENCY = 'MAD';
+const CURRENCY = '€'; // même devise que le site et le PaymentIntent (eur)
+
+// Longueur maximale de la description injectée (le prompt reste court)
+const MAX_DESCRIPTION_LENGTH = 150;
 
 // Message de fallback renvoyé si la requête échoue
 const FALLBACK_CATALOG_TEXT =
@@ -43,10 +46,25 @@ function getCategoryName(product) {
 }
 
 /**
+ * Raccourcir une description sur une limite de mot, sur une seule ligne.
+ *
+ * @param {string|null} description
+ * @returns {string} Description d'au plus MAX_DESCRIPTION_LENGTH caractères (+ « … »)
+ */
+function shortenDescription(description) {
+  const text = String(description || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= MAX_DESCRIPTION_LENGTH) return text;
+  const cut = text.slice(0, MAX_DESCRIPTION_LENGTH);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[\s,;:.]+$/, '') + '…';
+}
+
+/**
  * Formater un produit brut Sequelize en objet simple et lisible
  *
  * @param {Object} product - Instance Sequelize d'un produit (avec catégorie incluse)
- * @returns {{ name: string, price: number, category: string, stock: number }}
+ * @returns {{ name: string, price: number, category: string, stock: number,
+ *   ratingAvg: number, ratingCount: number, description: string }}
  */
 function formatProductForChatbot(product) {
   const rawPrice = product.price;
@@ -56,14 +74,21 @@ function formatProductForChatbot(product) {
     name: product.name,
     price: Number.isFinite(parsedPrice) ? Math.round(parsedPrice * 100) / 100 : 0,
     category: getCategoryName(product),
-    stock: Number.isInteger(product.stock) ? product.stock : parseInt(product.stock, 10) || 0
+    stock: Number.isInteger(product.stock) ? product.stock : parseInt(product.stock, 10) || 0,
+    ratingAvg: Math.round((parseFloat(product.ratingAvg) || 0) * 10) / 10,
+    ratingCount: parseInt(product.ratingCount, 10) || 0,
+    description: shortenDescription(product.description)
   };
 }
 
 /**
  * Transformer une liste de produits formatés en texte lisible (français)
  *
- * @param {Array<{ name: string, price: number, category: string, stock: number }>} products
+ * Format d'une ligne : « Nom - Prix - Catégorie - Stock: N - Note: X/5 (N avis) - Description ».
+ * La note n'apparaît que si le produit a des avis, la description que si elle existe.
+ *
+ * @param {Array<{ name: string, price: number, category: string, stock: number,
+ *   ratingAvg?: number, ratingCount?: number, description?: string }>} products
  * @returns {string} Liste numérotée prête à être injectée dans un prompt
  */
 function formatProductsAsText(products) {
@@ -73,7 +98,14 @@ function formatProductsAsText(products) {
 
   const lines = products.map((product, index) => {
     const price = product.price.toFixed(2);
-    return `${index + 1}. ${product.name} - ${price} ${CURRENCY} - ${product.category} - Stock: ${product.stock}`;
+    let line = `${index + 1}. ${product.name} - ${price} ${CURRENCY} - ${product.category} - Stock: ${product.stock}`;
+    if (product.ratingCount > 0) {
+      line += ` - Note: ${product.ratingAvg}/5 (${product.ratingCount} avis)`;
+    }
+    if (product.description) {
+      line += ` - ${product.description}`;
+    }
+    return line;
   });
 
   return lines.join('\n');
@@ -106,7 +138,7 @@ async function getProductCatalogForChatbot() {
           required: false // LEFT JOIN : un produit sans catégorie reste affiché
         }
       ],
-      attributes: ['name', 'price', 'stock'],
+      attributes: ['name', 'price', 'stock', 'ratingAvg', 'ratingCount', 'description'],
       order: [
         ['ratingAvg', 'DESC'],
         ['name', 'ASC']
@@ -128,6 +160,8 @@ module.exports = {
   getProductCatalogForChatbot,
   formatProductForChatbot,
   formatProductsAsText,
-  MAX_CATALOG_PRODUCTS
+  shortenDescription,
+  MAX_CATALOG_PRODUCTS,
+  MAX_DESCRIPTION_LENGTH
 };
 

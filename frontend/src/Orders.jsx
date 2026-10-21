@@ -1,4 +1,4 @@
-import { Package, ChevronRight, Search, Filter } from 'lucide-react';
+import { Package, ChevronRight, Search, Filter, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import useCartStore from './store/cartStore'; // Import du store
@@ -16,7 +16,8 @@ function Orders() {
     const getStatusColor = (status) => {
         switch(status) {
             case 'Livré': return 'bg-green-100 text-green-700 border-green-200';
-            case 'En préparation': 
+            case 'En attente de paiement': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'En préparation': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
             case 'En transit': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'Annulé': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -79,6 +80,13 @@ function Orders() {
                                 )}
                             </div>
                             
+                            <Link
+                                to={`/order-detail/${order.id}#suivi`}
+                                className="flex items-center gap-1 border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors ml-4 whitespace-nowrap"
+                            >
+                                <Truck size={18} />
+                                Suivre
+                            </Link>
                             <Link to={`/order-detail/${order.id}`}>
                                 <button className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl font-medium hover:bg-indigo-100 transition-colors ml-4 whitespace-nowrap">
                                     Détails

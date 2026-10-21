@@ -169,7 +169,7 @@ class AdminUserController {
 
       // Total dépensé : somme des totalAmount des commandes NON annulées
       const totalSpent = orders
-        .filter(order => order.status !== 'canceled')
+        .filter(order => order.status !== 'cancelled')
         .reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0);
 
       // Formater les commandes pour l'affichage

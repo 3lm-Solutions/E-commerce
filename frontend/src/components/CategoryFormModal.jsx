@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { X, Plus, Loader2 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 /**
  * Schéma de validation Zod reprenant les règles du backend
@@ -60,7 +61,6 @@ function CategoryFormModal({ isOpen, onClose, category, onSuccess }) {
     setIsSubmitting(true);
     setNameError('');
     try {
-      const token = localStorage.getItem('token');
       const payload = {
         name: values.name,
         description: values.description || null
@@ -68,11 +68,10 @@ function CategoryFormModal({ isOpen, onClose, category, onSuccess }) {
 
       const isEdit = !!category;
       const url = isEdit ? `/api/admin/categories/${category.id}` : '/api/admin/categories';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });

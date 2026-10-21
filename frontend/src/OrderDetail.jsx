@@ -1,13 +1,22 @@
-import { useParams, Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useParams, Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { Package, Truck, CheckCircle2, ChevronLeft, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
 import useCartStore from './store/cartStore'; // Import du store
+import OrderTracking from './components/OrderTracking';
 
 function OrderDetail() {
     const { id } = useParams();
     const fetchOrder = useCartStore((state) => state.fetchOrder);
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
+    const fetchOrderTracking = useCartStore((state) => state.fetchOrderTracking);
+    const cancelOrder = useCartStore((state) => state.cancelOrder);
+    const [tracking, setTracking] = useState(null);
+    const [confirmCancel, setConfirmCancel] = useState(false);
+    const [canceling, setCanceling] = useState(false);
+    const location = useLocation();
+    const trackingRef = useRef(null);
 
     // Charger la commande spécifique depuis le backend au montage
     useEffect(() => {
@@ -24,10 +33,41 @@ function OrderDetail() {
         return () => { mounted = false; };
     }, [id, fetchOrder]);
 
+    // Suivi : GET /api/orders/:orderId/tracking
+    useEffect(() => {
+        let mounted = true;
+        fetchOrderTracking(id).then((data) => {
+            if (mounted) setTracking(data);
+        });
+        return () => { mounted = false; };
+    }, [id, fetchOrderTracking]);
+
+    // Lien "Suivre" de la liste (/order-detail/:id#suivi) : défiler jusqu'au suivi une fois chargé
+    useEffect(() => {
+        if (tracking && location.hash === '#suivi') {
+            trackingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [tracking, location.hash]);
+
+    async function handleCancel() {
+        setCanceling(true);
+        const result = await cancelOrder(id);
+        setCanceling(false);
+        setConfirmCancel(false);
+        if (!result.ok) {
+            toast.error(result.message);
+            return;
+        }
+        toast.success('Commande annulée.');
+        setOrder((prev) => prev && { ...prev, _status: 'cancelled', status: 'Annulé' });
+        setTracking(await fetchOrderTracking(id));
+    }
+
     const getStatusColor = (status) => {
         switch(status) {
             case 'Livré': return 'bg-green-100 text-green-700 border-green-200';
-            case 'En préparation': 
+            case 'En attente de paiement': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'En préparation': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
             case 'En transit': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'Annulé': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -68,10 +108,51 @@ if (loading) {
                 </div>
                 <span className={`px-4 py-1.5 rounded-full text-sm font-semibold border flex items-center gap-2 w-fit ${getStatusColor(order.status)}`}>
                     {order.status === 'Livré' && <CheckCircle2 size={16} />}
-                    {(order.status === 'En transit' || order.status === 'En préparation') && <Truck size={16} />}
+                    {order.status === 'En transit' && <Truck size={16} />}
                     {order.status}
                 </span>
             </div>
+
+            {/* Annulation : uniquement pour une commande en attente (règle du backend) */}
+            {order._status === 'pending' && (
+                <div className="mb-8 flex flex-wrap items-center justify-end gap-3">
+                    {!confirmCancel ? (
+                        <button
+                            type="button"
+                            onClick={() => setConfirmCancel(true)}
+                            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
+                        >
+                            Annuler la commande
+                        </button>
+                    ) : (
+                        <div className="flex flex-wrap items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            <span className="text-sm text-red-700">Annuler cette commande ? Cette action est définitive.</span>
+                            <button
+                                type="button"
+                                onClick={() => setConfirmCancel(false)}
+                                disabled={canceling}
+                                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900"
+                            >
+                                Non, garder
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                disabled={canceling}
+                                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {canceling ? 'Annulation...' : 'Oui, annuler'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {tracking && (
+                <div id="suivi" ref={trackingRef} className="mb-8 scroll-mt-24">
+                    <OrderTracking tracking={tracking} />
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Liste des articles */}
@@ -113,7 +194,7 @@ if (loading) {
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between text-gray-600">
                                 <span>Sous-total</span>
-                                <span>{(order.total - (order.total * 0.2 / 1.2)).toFixed(2)} €</span> {/* Calcul approximatif du HT selon votre 20% TVA */}
+                                <span>{order.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)} €</span>
                             </div>
                             <div className="flex justify-between text-gray-600">
                                 <span>Livraison</span>

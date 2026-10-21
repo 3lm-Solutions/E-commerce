@@ -1,4 +1,4 @@
-const { Order, User } = require('../../models');
+const { Order, User, OrderStatusHistory } = require('../../models');
 const { Op } = require('sequelize');
 
 /**
@@ -7,14 +7,14 @@ const { Op } = require('sequelize');
  *
  * Routes ADMIN uniquement (middleware verifyAdmin requis au niveau des routes) :
  * - GET    /api/admin/orders                : Liste toutes les commandes (tous utilisateurs)
- * - GET    /api/admin/orders/:orderId       : Détail complet d'une commande (sans filtre userId)
+ * - GET    /api/admin/orders/:orderId       : Détail complet d'une commande (sans filtre userId), avec statusHistory
  * - PUT    /api/admin/orders/:orderId/status: Changer le statut de N'IMPORTE QUELLE commande
  *
  * Contrairement aux routes utilisateur (/api/orders), ces routes n'appliquent
  * AUCUN filtre userId : un admin doit pouvoir consulter et gérer toutes les
  * commandes de tous les clients.
  *
- * La machine à états (pending → confirmed → shipped → delivered, annulation)
+ * La machine à états (pending → confirmed → processing → shipped → delivered, annulation)
  * est réutilisée directement depuis le modèle Order (updateStatus()).
  */
 
@@ -28,7 +28,7 @@ class AdminOrderController {
    * @param {Object} res - Réponse Express
    *
    * Query params optionnels :
-   * - status       : filtre exact sur le statut (pending|confirmed|shipped|delivered|canceled)
+   * - status       : filtre exact sur le statut (pending|confirmed|processing|shipped|delivered|cancelled)
    * - startDate    : filtre sur created_at >= startDate (YYYY-MM-DD)
    * - endDate      : filtre sur created_at <= endDate (YYYY-MM-DD)
    * - userId       : filtre par utilisateur (UUID)
@@ -112,7 +112,7 @@ class AdminOrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'confirmedAt', 'shippedAt', 'deliveredAt', 'canceledAt'
+          'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
         ]
       });
 
@@ -183,7 +183,7 @@ class AdminOrderController {
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod',
           'trackingNumber', 'notes', 'created_at', 'updated_at',
-          'confirmedAt', 'shippedAt', 'deliveredAt', 'canceledAt'
+          'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt', 'cancelledAt'
         ]
       });
 
@@ -197,10 +197,27 @@ class AdminOrderController {
 
       console.log(`✅ Commande ${orderId} trouvée (${order.status})`);
 
+      // Historique des états, du plus ancien au plus récent (cahier 03, §3.1)
+      const history = await OrderStatusHistory.findAll({
+        where: { orderId: order.id },
+        include: [{ model: User, as: 'author', attributes: ['id', 'email', 'name', 'role'] }],
+        order: [['created_at', 'ASC']]
+      });
+
       res.status(200).json({
         success: true,
         message: 'Commande récupérée avec succès',
-        data: AdminOrderController.formatOrder(order)
+        data: {
+          ...AdminOrderController.formatOrder(order),
+          statusHistory: history.map((entry) => ({
+            fromStatus: entry.fromStatus,
+            toStatus: entry.toStatus,
+            changedAt: entry.created_at,
+            changedBy: entry.author
+              ? { id: entry.author.id, email: entry.author.email, name: entry.author.name, role: entry.author.role }
+              : null
+          }))
+        }
       });
 
     } catch (error) {
@@ -222,7 +239,7 @@ class AdminOrderController {
    *
    * @param {Object} req - Requête Express
    * @param {Object} res - Réponse Express
-   * @body { newStatus: "pending"|"confirmed"|"shipped"|"delivered"|"canceled" }
+   * @body { newStatus: "pending"|"confirmed"|"processing"|"shipped"|"delivered"|"cancelled" }
    */
   static async updateOrderStatusAdmin(req, res) {
     try {
@@ -260,7 +277,7 @@ class AdminOrderController {
 
       // Tenter la mise à jour du statut (validation via la machine à états)
       try {
-        await order.updateStatus(newStatus);
+        await order.updateStatus(newStatus, { changedBy: req.user.id });
 
         console.log(`✅ Commande ${order.orderId} mise à jour vers "${newStatus}"`);
 
@@ -318,6 +335,7 @@ class AdminOrderController {
       items: order.items?.map(item => ({
         productId: item.productId,
         name: item.name,
+        image: item.image || null,
         quantity: item.quantity,
         price: parseFloat(item.price),
         total: parseFloat(item.total || (item.price * item.quantity))
@@ -346,10 +364,12 @@ class AdminOrderController {
       // Dates complètes
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      confirmedAt: order.confirmed_at,
-      shippedAt: order.shipped_at,
-      deliveredAt: order.delivered_at,
-      canceledAt: order.canceled_at
+      // Attributs du modèle en camelCase (order.confirmed_at valait toujours undefined)
+      confirmedAt: order.confirmedAt,
+      processingAt: order.processingAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      cancelledAt: order.cancelledAt
     };
   }
 }

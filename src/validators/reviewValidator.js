@@ -25,7 +25,8 @@ const validateCreateReview = [
     .isLength({ max: 500 })
     .withMessage('Le commentaire ne peut pas dépasser 500 caractères')
     .trim()
-    .escape() // Échapper les caractères HTML pour éviter les injections
+  // Pas de .escape() : le texte serait stocké encodé (&#x27;...) et React,
+  // qui échappe déjà tout ce qu'il affiche, le montrerait tel quel.
 ];
 
 /**

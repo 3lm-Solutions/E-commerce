@@ -5,7 +5,8 @@ const { DataTypes } = require('sequelize');
  * FonctionnalitéHaute#1777
  * 
  * Machine à états des commandes avec transitions validées :
- * pending -> confirmed -> shipped -> delivered
+ * pending -> confirmed -> processing -> shipped -> delivered,
+ * et cancelled uniquement depuis pending (cahier 02, §3).
  * Aucune transition en arrière n'est autorisée
  */
 
@@ -13,19 +14,21 @@ module.exports = (sequelize) => {
   // Définition des statuts valides et leurs transitions
   const ORDER_STATUS = {
     PENDING: 'pending',
-    CONFIRMED: 'confirmed', 
+    CONFIRMED: 'confirmed',
+    PROCESSING: 'processing',
     SHIPPED: 'shipped',
     DELIVERED: 'delivered',
-    CANCELED: 'canceled' // FonctionnalitéMoyenne#1782
+    CANCELLED: 'cancelled' // FonctionnalitéMoyenne#1782
   };
 
   // Mapping des transitions valides
   const VALID_TRANSITIONS = {
-    [ORDER_STATUS.PENDING]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELED], // FonctionnalitéMoyenne#1782: pending peut être annulé
-    [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.SHIPPED],
+    [ORDER_STATUS.PENDING]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED], // FonctionnalitéMoyenne#1782: pending peut être annulé
+    [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PROCESSING],
+    [ORDER_STATUS.PROCESSING]: [ORDER_STATUS.SHIPPED],
     [ORDER_STATUS.SHIPPED]: [ORDER_STATUS.DELIVERED],
     [ORDER_STATUS.DELIVERED]: [], // État final, aucune transition
-    [ORDER_STATUS.CANCELED]: [] // État final, aucune transition (FonctionnalitéMoyenne#1782)
+    [ORDER_STATUS.CANCELLED]: [] // État final, aucune transition (FonctionnalitéMoyenne#1782)
   };
 
   const Order = sequelize.define('Order', {
@@ -67,24 +70,12 @@ module.exports = (sequelize) => {
       comment: 'Montant total de la commande'
     },
     status: {
-      type: DataTypes.ENUM(
-        ORDER_STATUS.PENDING,
-        ORDER_STATUS.CONFIRMED,
-        ORDER_STATUS.SHIPPED,
-        ORDER_STATUS.DELIVERED,
-        ORDER_STATUS.CANCELED // FonctionnalitéMoyenne#1782
-      ),
+      type: DataTypes.ENUM(...Object.values(ORDER_STATUS)),
       allowNull: false,
       defaultValue: ORDER_STATUS.PENDING,
       validate: {
         isIn: {
-          args: [[
-            ORDER_STATUS.PENDING,
-            ORDER_STATUS.CONFIRMED,
-            ORDER_STATUS.SHIPPED,
-            ORDER_STATUS.DELIVERED,
-            ORDER_STATUS.CANCELED // FonctionnalitéMoyenne#1782
-          ]],
+          args: [Object.values(ORDER_STATUS)],
           msg: 'Statut de commande invalide'
         }
       }
@@ -116,7 +107,7 @@ module.exports = (sequelize) => {
       comment: 'Notes internes sur la commande'
     },
     // Champs de dates de suivi (FonctionnalitéMoyenne#1782)
-    canceledAt: {
+    cancelledAt: {
       type: DataTypes.DATE,
       allowNull: true,
       comment: 'Date d\'annulation de la commande'
@@ -125,6 +116,11 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true,
       comment: 'Date de confirmation de la commande'
+    },
+    processingAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Date de passage en préparation'
     },
     shippedAt: {
       type: DataTypes.DATE,
@@ -168,6 +164,16 @@ module.exports = (sequelize) => {
           order.orderId = `ORD-${timestamp}-${random}`;
         }
       },
+
+      // Première ligne de l'historique des états (dans la transaction de création)
+      afterCreate: async (order, options) => {
+        await sequelize.models.OrderStatusHistory.create({
+          orderId: order.id,
+          fromStatus: null,
+          toStatus: order.status,
+          changedBy: order.userId
+        }, { transaction: options.transaction });
+      },
       
       // Hook pour valider les transitions de statut
       beforeUpdate: (order) => {
@@ -210,10 +216,19 @@ module.exports = (sequelize) => {
   /**
    * Méthode d'instance pour mettre à jour le statut avec validation
    * @param {string} newStatus - Nouveau statut
+   * @param {Object} [options]
+   * @param {string|null} [options.changedBy] - Auteur du changement (null : système)
    * @returns {Promise<Order>} - Instance mise à jour
    */
-  Order.prototype.updateStatus = async function(newStatus) {
+  Order.prototype.updateStatus = async function(newStatus, { changedBy = null } = {}) {
     const currentStatus = this.status;
+    // Ligne d'historique écrite dans la même transaction que le changement d'état
+    const recordHistory = (transaction) => sequelize.models.OrderStatusHistory.create({
+      orderId: this.id,
+      fromStatus: currentStatus,
+      toStatus: newStatus,
+      changedBy
+    }, { transaction });
     
     console.log(`📦 Commande ${this.orderId}: Tentative de changement de statut ${currentStatus} -> ${newStatus}`);
     
@@ -237,7 +252,11 @@ module.exports = (sequelize) => {
         // Marquer la date de confirmation (FonctionnalitéMoyenne#1782)
         this.confirmedAt = new Date();
         break;
-        
+
+      case ORDER_STATUS.PROCESSING:
+        this.processingAt = new Date();
+        break;
+
       case ORDER_STATUS.SHIPPED:
         // Générer un numéro de suivi si pas déjà défini
         if (!this.trackingNumber) {
@@ -255,16 +274,52 @@ module.exports = (sequelize) => {
         this.deliveredAt = new Date();
         break;
         
-      case ORDER_STATUS.CANCELED:
+      case ORDER_STATUS.CANCELLED:
         // Marquer la date d'annulation (FonctionnalitéMoyenne#1782)
-        this.canceledAt = new Date();
+        this.cancelledAt = new Date();
         const cancelNote = `Commande annulée le ${new Date().toLocaleDateString('fr-FR')}`;
         this.notes = this.notes ? `${this.notes}\n${cancelNote}` : cancelNote;
         break;
     }
     
-    // Sauvegarder les changements
-    await this.save();
+    if (newStatus === ORDER_STATUS.CANCELLED) {
+      // Annulation (client ou admin) : remise en stock dans la même transaction.
+      // La ligne de la commande est verrouillée et relue pour qu'une double
+      // annulation simultanée ne remette pas le stock deux fois.
+      try {
+        await sequelize.transaction(async (t) => {
+          const fresh = await Order.findByPk(this.id, { lock: t.LOCK.UPDATE, transaction: t });
+          if (!fresh || fresh.status !== currentStatus) {
+            throw new Error(`La commande ${this.orderId} a déjà changé de statut (${fresh ? fresh.status : 'introuvable'}).`);
+          }
+          await this.save({ transaction: t });
+          await recordHistory(t);
+
+          // Seuls les articles dont le stock a été décrémenté (commandes créées
+          // après l'ajout du contrôle de stock) sont remis en stock.
+          for (const item of this.items || []) {
+            if (item.stockReserved && item.productId && item.quantity > 0) {
+              await sequelize.models.Product.increment('stock', {
+                by: item.quantity,
+                where: { id: item.productId },
+                transaction: t
+              });
+            }
+          }
+        });
+      } catch (error) {
+        // Rien n'a été enregistré : on remet l'instance dans son état d'origine
+        this.status = currentStatus;
+        this.cancelledAt = null;
+        throw error;
+      }
+    } else {
+      // Sauvegarder les changements et l'historique ensemble
+      await sequelize.transaction(async (t) => {
+        await this.save({ transaction: t });
+        await recordHistory(t);
+      });
+    }
     
     console.log(`✅ Commande ${this.orderId}: Statut mis à jour vers "${newStatus}"`);
     
@@ -300,7 +355,7 @@ module.exports = (sequelize) => {
    * @returns {boolean} - True si la commande est livrée ou annulée
    */
   Order.prototype.isCompleted = function() {
-    return this.status === ORDER_STATUS.DELIVERED || this.status === ORDER_STATUS.CANCELED;
+    return this.status === ORDER_STATUS.DELIVERED || this.status === ORDER_STATUS.CANCELLED;
   };
 
   /**
@@ -333,6 +388,12 @@ module.exports = (sequelize) => {
       foreignKey: 'userId',
       as: 'user',
       onDelete: 'CASCADE'
+    });
+
+    // Historique des changements d'état
+    Order.hasMany(models.OrderStatusHistory, {
+      foreignKey: 'orderId',
+      as: 'statusHistory'
     });
 
     // Note: Les items sont stockés en JSONB pour préserver l'état

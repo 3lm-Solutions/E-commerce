@@ -53,18 +53,25 @@ module.exports = {
       }
     });
 
+    // La table peut déjà exister (créée par create-complete-ecommerce-schema avec
+    // ses index user_id/product_id) : on n'ajoute que les index manquants.
+    const existingIndexes = (await queryInterface.showIndex('reviews')).map((index) => index.name);
+
     // Ajouter les index
-    await queryInterface.addIndex('reviews', ['user_id']);
-    await queryInterface.addIndex('reviews', ['product_id']);
-    await queryInterface.addIndex('reviews', ['rating']);
-    await queryInterface.addIndex('reviews', ['created_at']);
-    
+    for (const field of ['user_id', 'product_id', 'rating', 'created_at']) {
+      if (!existingIndexes.includes(`reviews_${field}`)) {
+        await queryInterface.addIndex('reviews', [field]);
+      }
+    }
+
     // Index unique pour empêcher qu'un utilisateur laisse plusieurs avis sur le même produit
-    await queryInterface.addConstraint('reviews', {
-      fields: ['user_id', 'product_id'],
-      type: 'unique',
-      name: 'unique_user_product_review'
-    });
+    if (!existingIndexes.includes('unique_user_product_review')) {
+      await queryInterface.addConstraint('reviews', {
+        fields: ['user_id', 'product_id'],
+        type: 'unique',
+        name: 'unique_user_product_review'
+      });
+    }
   },
 
   async down(queryInterface, Sequelize) {

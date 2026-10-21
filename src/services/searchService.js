@@ -5,19 +5,45 @@
       Service de recherche produits
      
       - filterProducts(filters) : applique des filtres structurés
-        { category, max_price, tags } issus de l'extraction NLP (Groq)
+        { category, min_price, max_price, tags } issus de l'extraction NLP (Groq)
       - classicSearch(query) : recherche texte classique (fallback si Groq échoue)
      */
 
     const DEFAULT_LIMIT = 20;
 
 
+    // Minuscules sans accents, pour comparer "Électronique" et "electronique"
+    function normalizeText(text) {
+    return (text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    // Nombre de tags de la requête retrouvés dans le produit (nom, description, catégorie, tags)
+    function tagScore(product, targetTags) {
+    const haystack = normalizeText([
+        product.name,
+        product.description,
+        product.category ? product.category.name : '',
+        ...(Array.isArray(product.tags) ? product.tags : [])
+    ].join(' '));
+    return targetTags.filter((tag) => haystack.includes(tag)).length;
+    }
+
+    const isPrice = (value) => value !== null && value !== undefined && !isNaN(value);
+
     async function filterProducts(filters, limit = DEFAULT_LIMIT) {
-    const { category, max_price, tags } = filters || {};
+    const { category, min_price, max_price, tags } = filters || {};
+
+    // Aucune information exploitable extraite : pas de résultat plutôt que tout le catalogue
+    const hasTags = Array.isArray(tags) && tags.length > 0;
+    if (!category && !isPrice(min_price) && !isPrice(max_price) && !hasTags) {
+        return { products: [], categoryRelaxed: false };
+    }
 
     const priceCondition = {};
-    if (max_price !== null && max_price !== undefined && !isNaN(max_price)) {
-        priceCondition.price = { [Op.lte]: max_price };
+    if (isPrice(min_price) || isPrice(max_price)) {
+        priceCondition.price = {};
+        if (isPrice(min_price)) priceCondition.price[Op.gte] = min_price;
+        if (isPrice(max_price)) priceCondition.price[Op.lte] = max_price;
     }
 
     const includeConditions = [
@@ -47,25 +73,42 @@
     let categoryRelaxed = false;
 
     if (category) {
-        const strictMatches = allCandidates.filter((p) => matchesCategory(p, category));
+        // 1. Catégorie du catalogue (Groq choisit dans la liste injectée dans le prompt).
+        // Inclusion plutôt qu'égalité : "Livres" couvre aussi "Livres & Média".
+        const target = normalizeText(category);
+        const exactMatches = allCandidates.filter((p) => {
+        if (!p.category) return false;
+        const name = normalizeText(p.category.name);
+        return name.includes(target) || target.includes(name);
+        });
+        // 2. Sinon, terme libre retrouvé dans le nom, la description ou les tags
+        const looseMatches = exactMatches.length > 0
+        ? exactMatches
+        : allCandidates.filter((p) => matchesCategory(p, category));
 
-        if (strictMatches.length > 0) {
-        candidates = strictMatches;
+        if (looseMatches.length > 0) {
+        candidates = looseMatches;
         } else {
         categoryRelaxed = true;
         candidates = allCandidates;
         }
     }
 
+    // Tags : si au moins un produit correspond à un mot-clé, on ne garde que ceux-là,
+    // classés par nombre de mots-clés retrouvés. Si aucun ne correspond, on garde
+    // les produits de la catégorie (la catégorie seule reste pertinente) ; sans
+    // catégorie fiable, on ne renvoie rien plutôt que tout le catalogue.
     if (Array.isArray(tags) && tags.length > 0) {
-        const normalizedTargetTags = tags.map((t) => t.toLowerCase().trim());
+        const normalizedTargetTags = tags.map(normalizeText).map((t) => t.trim()).filter(Boolean);
 
-        candidates = candidates.filter((product) => {
-        const productTags = Array.isArray(product.tags)
-            ? product.tags.map((t) => t.toLowerCase().trim())
-            : [];
-        return normalizedTargetTags.some((tag) => productTags.includes(tag));
-        });
+        let scored = candidates.map((product) => ({ product, score: tagScore(product, normalizedTargetTags) }));
+        const hasTagMatch = scored.some((entry) => entry.score > 0);
+        if (hasTagMatch || !category || categoryRelaxed) {
+        scored = scored.filter((entry) => entry.score > 0);
+        }
+        // Tri stable : à score égal, l'ordre par note (requête SQL) est conservé
+        scored.sort((a, b) => b.score - a.score);
+        candidates = scored.map((entry) => entry.product);
     }
 
     return { products: candidates.slice(0, limit), categoryRelaxed };

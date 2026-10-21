@@ -5,6 +5,12 @@ const DEFAULT_RECENT_LIMIT = 5;
 const DEFAULT_RECOMMENDATIONS_LIMIT = 10;
 const EVENTS_LOOKUP_WINDOW = 30;
 
+    // Condition d'exclusion par id, omise si la liste est vide :
+    // NOT IN ('') échoue sur une colonne UUID PostgreSQL.
+    function notInIds(ids) {
+    return ids.size > 0 ? { id: { [Op.notIn]: [...ids] } } : {};
+    }
+
     async function getUserRecentCategories(userId, limit = DEFAULT_RECENT_LIMIT) {
     // On récupère les événements les plus récents (view + purchase confondus)
     const recentEvents = await UserEvent.findAll({
@@ -120,7 +126,7 @@ const EVENTS_LOOKUP_WINDOW = 30;
         where: {
             categoryId: categoryIds,
             isActive: true,
-            id: { [Op.notIn]: excludedIds.size > 0 ? [...excludedIds] : [''] }
+            ...notInIds(excludedIds)
         },
         order: [['ratingAvg', 'DESC'], ['ratingCount', 'DESC']],
         limit
@@ -134,7 +140,7 @@ const EVENTS_LOOKUP_WINDOW = 30;
         const fallbackProducts = await Product.findAll({
         where: {
             isActive: true,
-            id: { [Op.notIn]: fallbackExcludedIds.size > 0 ? [...fallbackExcludedIds] : [''] }
+            ...notInIds(fallbackExcludedIds)
         },
         order: [['ratingAvg', 'DESC'], ['ratingCount', 'DESC']],
         limit: limit - recommendations.length

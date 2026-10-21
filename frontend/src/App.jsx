@@ -11,6 +11,7 @@ import Checkout from './Checkout';
 import Chatbot from './Chatbot';
 import Orders from './Orders';
 import OrderDetail from './OrderDetail';
+import OrderConfirmation from './OrderConfirmation';
 import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import Register from './Register';
@@ -101,6 +102,13 @@ function App() {
                   <ProtectedRoute>
                     <AnimatedContainer animation="slideUp">
                       <OrderDetail />
+                    </AnimatedContainer>
+                  </ProtectedRoute>
+                } />
+                <Route path="/order-confirmation/:id" element={
+                  <ProtectedRoute>
+                    <AnimatedContainer animation="slideUp">
+                      <OrderConfirmation />
                     </AnimatedContainer>
                   </ProtectedRoute>
                 } />

@@ -6,7 +6,8 @@ Charge les variables d'environnement depuis le fichier .env (via python-dotenv)
 et les expose de manière centralisée pour le reste de l'application.
 
 Variables attendues :
-    - GROQ_API_KEY : clé API Groq (obligatoire pour appeler les modèles Llama)
+    - GROQ_API_KEY : clé API Groq (obligatoire)
+    - GROQ_MODEL   : modèle Groq (défaut : qwen/qwen3.8-27b)
     - PORT         : port HTTP du serveur Flask (défaut : 5000)
     - FLASK_ENV    : environnement Flask (défaut : development)
 
@@ -50,6 +51,34 @@ def get_groq_api_key() -> str:
     """
     validate_environment()
     return os.getenv("GROQ_API_KEY")
+
+
+# Modèle par défaut : llama-3.3-70b-versatile n'existe plus chez Groq.
+DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b"
+
+
+def get_groq_model() -> str:
+    """
+    Retourne le modèle Groq à utiliser (même variable que le backend Node).
+
+    @returns: la valeur de GROQ_MODEL, sinon DEFAULT_GROQ_MODEL
+    """
+    return os.getenv("GROQ_MODEL", "").strip() or DEFAULT_GROQ_MODEL
+
+
+def get_groq_extra_body() -> dict:
+    """
+    Paramètres à ajouter aux appels Groq pour masquer le raisonnement des
+    modèles qui en produisent (sinon il apparaît dans la réponse au client).
+
+    @returns: dict à passer en `extra_body` (vide si le modèle n'en a pas besoin)
+    """
+    model = get_groq_model().lower()
+    if "qwen3" in model:
+        return {"reasoning_format": "hidden"}
+    if "gpt-oss" in model:
+        return {"include_reasoning": False}
+    return {}
 
 
 def get_port() -> int:

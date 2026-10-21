@@ -63,8 +63,10 @@ const SearchInput = ({
       clearTimeout(debounceRef.current);
     }
 
+    // Un champ vidé (touche Retour ou bouton ×) envoie aussi '' : sinon le
+    // filtre précédent restait appliqué.
     debounceRef.current = setTimeout(() => {
-      if (query.length > 0 && onSearch) {
+      if (onSearch) {
         onSearch(query);
       }
     }, debounceMs);

@@ -41,9 +41,11 @@ class AuthController {
 
       // Le frontend envoie un champ 'name' unique (ex: "John Doe")
       // Compatibilité arrière: certains clients peuvent envoyer firstName/lastName
-      let { name, email, password, firstName, lastName, role = 'client' } = req.body;
-
-      console.log('[REGISTER] req.body reçu:', req.body);
+      let { name, email, password, firstName, lastName } = req.body;
+      // Sécurité : l'inscription publique crée toujours un client. Un éventuel
+      // champ « role » du body est ignoré (sinon n'importe qui devenait admin).
+      // Les comptes admin se créent hors API (scripts/create-test-users.js).
+      const role = 'client';
 
       // Construire le nom de manière robuste
       if (!name && (firstName || lastName)) {
@@ -336,7 +338,6 @@ class AuthController {
    */
   static async generateTokens(user) {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
-     console.log("LOGIN SECRET =", process.env.JWT_SECRET);
     // Payload pour les tokens
     const payload = {
       userId: user.id,
@@ -350,10 +351,12 @@ class AuthController {
     });
 
     // Refresh token (7 jours selon CDC)
+    // jwtid unique : sans lui, deux tokens générés dans la même seconde pour le
+    // même utilisateur seraient identiques (violation de l'unicité en base).
     const refreshTokenValue = jwt.sign(
-      { userId: user.id, type: 'refresh' }, 
-      jwtSecret, 
-      { expiresIn: '7d' }
+      { userId: user.id, type: 'refresh' },
+      jwtSecret,
+      { expiresIn: '7d', jwtid: uuidv4() }
     );
 
     // Stocker le refresh token en base
@@ -442,11 +445,7 @@ AuthController.validateRegister = [
     .isLength({ min: 8 })
     .withMessage('Le mot de passe doit contenir au moins 8 caractères')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre'),
-  body('role')
-    .optional()
-    .isIn(['client', 'admin'])
-    .withMessage('Le rôle doit être "client" ou "admin"')
+    .withMessage('Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre')
 ];
 
 AuthController.validateLogin = [

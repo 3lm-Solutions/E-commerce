@@ -11,19 +11,19 @@ chatbot-ia/docs/openapi.yaml :
 La route /chat/message est implémentée (FonctionnalitéHaute #1671) :
     - validation du body (message obligatoire, conversation_history optionnel)
     - récupération du catalogue produits via le backend Node.js (route interne)
-    - appel à l'API Groq (Llama 3.3 70B) avec streaming SSE
+    - appel à l'API Groq (modèle GROQ_MODEL) avec streaming SSE
     - réponse au format Server-Sent Events (text/event-stream)
 
 La route /ai/generate-description est implémentée (FonctionnalitéMoyenne #1672) :
     - validation du body (name et category obligatoires, tags optionnel)
     - construction d'un prompt marketing dédié (services/description_prompt.py)
-    - appel SYNCHRONE (stream=False) à l'API Groq (Llama 3.3 70B)
+    - appel SYNCHRONE (stream=False) à l'API Groq (modèle GROQ_MODEL)
     - réponse JSON { "description": "..." } (2-3 phrases)
 
 La route /ai/summarize-reviews est implémentée (FonctionnalitéMoyenne #1674) :
     - validation du body (reviews obligatoire, array non vide de strings)
     - construction d'un prompt dédié (services/reviews_summary_prompt.py)
-    - appel SYNCHRONE (stream=False) à l'API Groq (Llama 3.3 70B)
+    - appel SYNCHRONE (stream=False) à l'API Groq (modèle GROQ_MODEL)
     - parsing JSON robuste avec nettoyage des balises ```json
     - réponse JSON { "summary": { "pros": [...], "cons": [...] } }
 
@@ -39,6 +39,15 @@ LANCEMENT :
 """
 
 import json
+import sys
+
+# Les logs contiennent des emojis : une console Windows en cp1252 lève
+# UnicodeEncodeError dans print(), ce qui interrompait la réponse (le message
+# d'erreur SSE n'était jamais envoyé). Sortie en UTF-8, caractère remplacé
+# si la console ne peut pas l'afficher.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
@@ -214,6 +223,13 @@ def clean_generated_description(text):
 # ---------------------------------------------------------------------------
 # Streaming SSE — générateur de la réponse
 # ---------------------------------------------------------------------------
+# Réponse vide du modèle : nombre d'appels au total, puis message de repli
+EMPTY_REPLY_ATTEMPTS = 2
+EMPTY_REPLY_FALLBACK = (
+    "Désolé, je n'ai pas bien compris. Pouvez-vous reformuler votre question ?"
+)
+
+
 def stream_chat_response(message, conversation_history):
     """
     Générateur Python qui produit la réponse SSE au format attendu.
@@ -234,21 +250,46 @@ def stream_chat_response(message, conversation_history):
 
         # 2. Construire les messages au format Groq/OpenAI-compatible
         messages = build_messages_for_groq(conversation_history, catalogue_text)
+        # Le frontend envoie l'historique SANS le nouveau message : on l'ajoute,
+        # sinon le modèle ne voit jamais la question posée.
+        messages.append({"role": "user", "content": message})
 
         # 3. Appeler l'API Groq avec streaming
         client = get_groq_client()
 
-        stream = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            stream=True,
-        )
+        # Le modèle renvoie parfois une réponse vide (tout part dans le
+        # raisonnement masqué) : rien n'a encore été envoyé au client, on peut
+        # donc relancer une fois, puis répondre un message de repli.
+        has_content = False
+        for attempt in range(1, EMPTY_REPLY_ATTEMPTS + 1):
+            stream = client.chat.completions.create(
+                model=config.get_groq_model(),
+                extra_body=config.get_groq_extra_body(),
+                messages=messages,
+                stream=True,
+            )
 
-        # 4. Relayer chaque chunk sous forme d'événement SSE "delta"
-        for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                delta = chunk.choices[0].delta.content
-                yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+            # 4. Relayer chaque chunk sous forme d'événement SSE "delta".
+            # Les blancs du début sont retenus jusqu'au premier vrai texte,
+            # pour qu'une réponse faite uniquement de blancs compte comme vide.
+            pending_blank = ""
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    delta = chunk.choices[0].delta.content
+                    if not has_content:
+                        if not delta.strip():
+                            pending_blank += delta
+                            continue
+                        delta = pending_blank + delta
+                        has_content = True
+                    yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+
+            if has_content:
+                break
+            print(f"⚠️ Réponse vide du modèle (tentative {attempt}/{EMPTY_REPLY_ATTEMPTS})")
+
+        if not has_content:
+            yield f"data: {json.dumps({'delta': EMPTY_REPLY_FALLBACK}, ensure_ascii=False)}\n\n"
 
         # 5. Signal de fin de réponse
         yield f"data: {json.dumps({'done': True})}\n\n"
@@ -326,7 +367,8 @@ def ai_generate_description():
         # 2. Appeler l'API Groq en synchrone (stream=False par défaut ici)
         client = get_groq_client()
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=config.get_groq_model(),
+            extra_body=config.get_groq_extra_body(),
             messages=[{"role": "user", "content": prompt}],
             stream=False,
         )
@@ -442,7 +484,8 @@ def ai_summarize_reviews():
         # 2. Appeler l'API Groq en synchrone (stream=False)
         client = get_groq_client()
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=config.get_groq_model(),
+            extra_body=config.get_groq_extra_body(),
             messages=[{"role": "user", "content": prompt}],
             stream=False,
         )

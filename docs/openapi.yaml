@@ -1,0 +1,1717 @@
+openapi: 3.0.3
+info:
+  title: API E-commerce intelligent (backend Node)
+  version: 1.1.0
+  description: |
+    Contrat de l'API du backend Node/Express (cahier général 00, §3.2 et §6.1).
+    Le chatbot IA (Flask) a son propre contrat : `chatbot-ia/docs/openapi.yaml`.
+
+    - Réponses JSON au format `{ success, message?, data }` ; erreurs `{ success: false, message, errors? }`.
+    - Authentification : `Authorization: Bearer <accessToken>` (JWT, 15 min), renouvelé par `POST /api/auth/refresh`.
+    - Routes `/api/admin/*` : token d'un utilisateur `role = admin` (sinon 403).
+    - Données d'exemple : `/fixtures` (identifiants fixes `p_001`…, `u_001`…).
+
+    Changements 1.1.0 (contrat cassant, cahier 02) :
+    - état de commande `cancelled` (au lieu de `canceled`), champ `cancelledAt` ;
+    - nouvel état `processing` entre `confirmed` et `shipped`, champ `processingAt` ;
+    - routes panier `/api/cart/items` et `DELETE /api/cart` (anciennes routes dépréciées) ;
+    - `statusHistory` dans le détail admin d'une commande.
+servers:
+  - url: http://localhost:3000
+    description: Développement local
+
+tags:
+  - name: Santé
+  - name: Auth
+  - name: Catalogue
+  - name: Avis
+  - name: Panier
+  - name: Wishlist
+  - name: Commandes
+  - name: Paiement
+  - name: Recommandations
+  - name: Événements
+  - name: Recherche
+  - name: Admin
+  - name: Interne
+
+paths:
+  /health:
+    get:
+      tags: [Santé]
+      security: []
+      summary: État du serveur
+      responses:
+        '200':
+          description: Serveur disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string }
+
+  # ---------------------------------------------------------------- Auth
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Inscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 100 }
+                email: { type: string, format: email }
+                password:
+                  type: string
+                  minLength: 8
+                  description: Au moins une minuscule, une majuscule et un chiffre
+      responses:
+        '201': { $ref: '#/components/responses/AuthSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: Email déjà utilisé, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Connexion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: Identifiants invalides, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Compte désactivé, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Nouvelle paire de tokens (le refresh token n'est utilisable qu'une fois)
+      requestBody: { $ref: '#/components/requestBodies/RefreshToken' }
+      responses:
+        '200':
+          description: Nouveaux tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      accessToken: { type: string }
+                      refreshToken: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: 'Refresh token invalide, expiré ou déjà utilisé', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Déconnexion (invalide le refresh token)
+      requestBody: { $ref: '#/components/requestBodies/RefreshToken' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Profil de l'utilisateur connecté
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/auth/verify:
+    get:
+      tags: [Auth]
+      summary: Vérifie le token d'accès
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- Catalogue
+  /api/products:
+    get:
+      tags: [Catalogue]
+      security: []
+      summary: Liste paginée des produits actifs
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: minPrice, in: query, schema: { type: number } }
+        - { name: maxPrice, in: query, schema: { type: number } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: sortBy, in: query, schema: { type: string, enum: [createdAt, price, name, ratingAvg], default: createdAt } }
+        - { name: sortOrder, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Produits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      products: { type: array, items: { $ref: '#/components/schemas/Product' } }
+                      pagination:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          limit: { type: integer }
+                          total: { type: integer }
+                          pages: { type: integer }
+                          hasNext: { type: boolean }
+                          hasPrev: { type: boolean }
+                      filters: { type: object }
+  /api/products/{id}:
+    get:
+      tags: [Catalogue]
+      security: []
+      summary: Détail d'un produit
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      responses:
+        '200':
+          description: Produit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      product: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/categories:
+    get:
+      tags: [Catalogue]
+      security: []
+      summary: Liste des catégories
+      responses:
+        '200':
+          description: Catégories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      categories: { type: array, items: { $ref: '#/components/schemas/Category' } }
+
+  # ---------------------------------------------------------------- Avis
+  /api/products/{id}/reviews:
+    get:
+      tags: [Avis]
+      security: []
+      summary: Avis d'un produit
+      parameters:
+        - { $ref: '#/components/parameters/ProductId' }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 10 } }
+        - { name: rating, in: query, description: Filtrer sur une note, schema: { type: integer, minimum: 1, maximum: 5 } }
+      responses:
+        '200':
+          description: Avis, pagination et statistiques
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      reviews: { type: array, items: { $ref: '#/components/schemas/Review' } }
+                      pagination: { type: object }
+                      stats:
+                        type: object
+                        properties:
+                          averageRating: { type: string, example: '4.33' }
+                          totalReviews: { type: integer }
+    post:
+      tags: [Avis]
+      summary: Déposer un avis (un seul par utilisateur et par produit)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 500 }
+      responses:
+        '201':
+          description: Avis créé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      review: { $ref: '#/components/schemas/Review' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Avis déjà déposé, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/products/{id}/review-summary:
+    get:
+      tags: [Avis, Recommandations]
+      security: []
+      summary: Avantages et inconvénients générés par IA (20 derniers avis, mis en cache)
+      parameters: [{ $ref: '#/components/parameters/ProductId' }]
+      responses:
+        '200':
+          description: Résumé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      productId: { type: string, format: uuid }
+                      reviewsAnalyzed: { type: integer }
+                      cached: { type: boolean }
+                      summary:
+                        type: object
+                        properties:
+                          pros: { type: array, maxItems: 3, items: { type: string } }
+                          cons: { type: array, maxItems: 3, items: { type: string } }
+                          rating_summary: { type: string }
+        '404': { description: Produit inconnu ou sans avis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  # ---------------------------------------------------------------- Panier
+  /api/cart:
+    get:
+      tags: [Panier]
+      summary: Panier de l'utilisateur (créé vide s'il n'existe pas)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Panier]
+      summary: Vider le panier
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/cart/items:
+    post:
+      tags: [Panier]
+      summary: Ajouter un produit (la quantité s'ajoute s'il est déjà dans le panier)
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/CartAdd' }
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Stock insuffisant, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/cart/items/{product_id}:
+    parameters: [{ $ref: '#/components/parameters/CartProductId' }]
+    put:
+      tags: [Panier]
+      summary: Modifier la quantité d'un produit
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/CartQuantity' }
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Stock insuffisant, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      tags: [Panier]
+      summary: Retirer un produit
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/cart/add:
+    post:
+      tags: [Panier]
+      summary: Alias déprécié de POST /api/cart/items
+      deprecated: true
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/CartAdd' }
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+  /api/cart/update/{product_id}:
+    put:
+      tags: [Panier]
+      summary: Alias déprécié de PUT /api/cart/items/{product_id}
+      deprecated: true
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CartProductId' }]
+      requestBody: { $ref: '#/components/requestBodies/CartQuantity' }
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+  /api/cart/remove/{product_id}:
+    delete:
+      tags: [Panier]
+      summary: Alias déprécié de DELETE /api/cart/items/{product_id}
+      deprecated: true
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CartProductId' }]
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+  /api/cart/clear:
+    delete:
+      tags: [Panier]
+      summary: Alias déprécié de DELETE /api/cart
+      deprecated: true
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartResponse' }
+
+  # ---------------------------------------------------------------- Wishlist
+  /api/wishlist:
+    get:
+      tags: [Wishlist]
+      summary: Produits favoris
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/WishlistResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Wishlist]
+      summary: Ajouter un produit aux favoris
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/WishlistResponse' }
+        '201': { $ref: '#/components/responses/WishlistResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Déjà dans les favoris, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      tags: [Wishlist]
+      summary: Vider les favoris
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/WishlistResponse' }
+  /api/wishlist/{productId}:
+    delete:
+      tags: [Wishlist]
+      summary: Retirer un produit des favoris
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: productId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/WishlistResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/wishlist/check/{productId}:
+    get:
+      tags: [Wishlist]
+      summary: Le produit est-il dans les favoris ?
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: productId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200':
+          description: Résultat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      productId: { type: string, format: uuid }
+                      inWishlist: { type: boolean }
+                      addedAt: { type: string, format: date-time, nullable: true }
+
+  # ---------------------------------------------------------------- Commandes
+  /api/orders:
+    post:
+      tags: [Commandes]
+      summary: Créer une commande depuis le panier
+      description: |
+        Transaction : panier et produits verrouillés, stock vérifié puis décrémenté,
+        snapshot des articles (nom, prix, image), panier vidé. Commande créée en `pending`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shippingAddress]
+              properties:
+                shippingAddress: { $ref: '#/components/schemas/Address' }
+                paymentMethod: { type: string, example: card }
+      responses:
+        '201':
+          description: Commande créée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      orderId: { type: string, example: ORD-MV5AJXSG-L6H03Y }
+                      total: { type: number }
+                      status: { type: string, enum: [pending] }
+        '400': { description: Panier vide ou adresse invalide, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Stock insuffisant ou produit indisponible
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string }
+                  conflicts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        productId: { type: string, format: uuid }
+                        name: { type: string }
+                        requested: { type: integer }
+                        available: { type: integer }
+    get:
+      tags: [Commandes]
+      summary: Historique des commandes de l'utilisateur
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 10 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
+      responses:
+        '200':
+          description: Commandes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      orders: { type: array, items: { $ref: '#/components/schemas/Order' } }
+                      pagination: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/orders/statuses:
+    get:
+      tags: [Commandes]
+      summary: États, transitions autorisées et libellés
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Machine à états
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      statuses: { type: array, items: { $ref: '#/components/schemas/OrderStatus' } }
+                      transitions:
+                        type: object
+                        additionalProperties: { type: array, items: { $ref: '#/components/schemas/OrderStatus' } }
+                      statusDescriptions:
+                        type: object
+                        additionalProperties: { type: string }
+  /api/orders/{orderId}:
+    get:
+      tags: [Commandes]
+      summary: Détail d'une commande de l'utilisateur
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      responses:
+        '200':
+          description: Commande
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/orders/{orderId}/transitions:
+    get:
+      tags: [Commandes]
+      summary: Transitions possibles depuis l'état actuel
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      responses:
+        '200':
+          description: Transitions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      orderId: { type: string }
+                      currentStatus: { $ref: '#/components/schemas/OrderStatus' }
+                      availableTransitions: { type: array, items: { $ref: '#/components/schemas/OrderStatus' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/orders/{orderId}/cancel:
+    put:
+      tags: [Commandes]
+      summary: Annuler une commande (uniquement depuis `pending`) ; le stock est remis
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Commande annulée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      orderId: { type: string }
+                      previousStatus: { type: string, enum: [pending] }
+                      currentStatus: { type: string, enum: [cancelled] }
+                      cancelledAt: { type: string, format: date-time }
+                      reason: { type: string, nullable: true }
+        '400': { description: La commande n'est plus en attente, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/orders/{orderId}/tracking:
+    get:
+      tags: [Commandes]
+      summary: Suivi simplifié (frise des étapes)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      responses:
+        '200':
+          description: Suivi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/OrderDates'
+                      - type: object
+                        properties:
+                          orderId: { type: string }
+                          status: { $ref: '#/components/schemas/OrderStatus' }
+                          trackingNumber: { type: string, nullable: true }
+                          progress:
+                            type: object
+                            properties:
+                              isCompleted: { type: boolean }
+                              isCancelled: { type: boolean }
+                              currentStep: { $ref: '#/components/schemas/OrderStatus' }
+                              timeline:
+                                type: array
+                                description: pending, confirmed, processing, shipped, delivered (ou pending, cancelled)
+                                items:
+                                  type: object
+                                  properties:
+                                    step: { $ref: '#/components/schemas/OrderStatus' }
+                                    completed: { type: boolean }
+                                    date: { type: string, format: date-time, nullable: true }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/orders/{orderId}/status:
+    put:
+      tags: [Commandes, Admin]
+      summary: Changer l'état d'une commande (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      requestBody: { $ref: '#/components/requestBodies/NewStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '400': { description: Transition invalide, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Paiement
+  /api/payments/create-intent:
+    post:
+      tags: [Paiement]
+      summary: Créer un PaymentIntent Stripe pour une commande
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, amount]
+              properties:
+                orderId: { type: string }
+                amount: { type: number, description: 'En euros, doit correspondre au total de la commande' }
+                currency: { type: string, default: eur }
+      responses:
+        '200':
+          description: PaymentIntent créé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      client_secret: { type: string }
+                      orderId: { type: string }
+                      amount: { type: number }
+                      currency: { type: string }
+                      status: { type: string }
+                      paymentIntentId: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/payments/webhook:
+    post:
+      tags: [Paiement]
+      security: []
+      summary: Webhook Stripe (signature `Stripe-Signature` requise)
+      description: "Connu : la vérification de signature échoue tant que le corps brut n'est pas transmis (bug 2)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Événement reçu
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean }
+        '400': { description: Signature invalide }
+  /api/payments/config:
+    get:
+      tags: [Paiement]
+      security: []
+      summary: Configuration publique Stripe
+      responses:
+        '200':
+          description: Configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      publishableKey: { type: string }
+                      currency: { type: string }
+                      country: { type: string }
+  /webhooks/stripe:
+    post:
+      tags: [Paiement]
+      security: []
+      summary: Webhook Stripe (payment_intent.succeeded → commande confirmée)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Événement reçu }
+        '400': { description: Signature invalide }
+
+  # ---------------------------------------------------------------- Recommandations
+  /recommendations/similar/{product_id}:
+    get:
+      tags: [Recommandations]
+      security: []
+      summary: Produits similaires (catégorie +3, tag commun +2, prix à ±20 % +1)
+      parameters:
+        - { name: product_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, default: 4, maximum: 20 } }
+      responses:
+        '200':
+          description: Produits classés par score
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      productId: { type: string, format: uuid }
+                      count: { type: integer }
+                      similarProducts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            price: { type: number }
+                            image: { type: string, nullable: true }
+                            category: { $ref: '#/components/schemas/Category' }
+                            ratingAvg: { type: number }
+                            similarityScore: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /recommendations/for-you:
+    get:
+      tags: [Recommandations]
+      summary: « Vous aimerez aussi » (5 derniers produits vus ou achetés)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }]
+      responses:
+        '200':
+          description: Recommandations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      basedOnCategories: { type: array, items: { type: string } }
+                      hasHistory: { type: boolean }
+                      count: { type: integer }
+                      recommendations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            price: { type: number }
+                            image: { type: string, nullable: true }
+                            categoryId: { type: string, format: uuid }
+                            ratingAvg: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /recommendations/trending:
+    get:
+      tags: [Recommandations]
+      security: []
+      summary: Produits les plus consultés
+      parameters:
+        - { name: days, in: query, schema: { type: integer, default: 7, maximum: 90 } }
+        - { name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+      responses:
+        '200':
+          description: Produits tendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      days: { type: integer }
+                      count: { type: integer }
+                      trending:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            price: { type: number }
+                            image: { type: string, nullable: true }
+                            category: { type: string }
+                            ratingAvg: { type: number }
+                            viewCount: { type: integer }
+
+  # ---------------------------------------------------------------- Événements
+  /events/view:
+    post:
+      tags: [Événements]
+      summary: L'utilisateur a consulté un produit
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id]
+              properties:
+                product_id: { type: string, format: uuid }
+                session_id: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /events/purchase:
+    post:
+      tags: [Événements]
+      summary: L'utilisateur a acheté des produits
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_ids]
+              properties:
+                product_ids: { type: array, items: { type: string, format: uuid } }
+                total_amount: { type: number }
+                session_id: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- Recherche
+  /search/nlp:
+    post:
+      tags: [Recherche]
+      security: []
+      summary: Recherche en langage naturel (filtres extraits par Groq, repli sur la recherche classique)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string, example: laptop moins de 500 euros pour étudiant }
+      responses:
+        '200':
+          description: Produits filtrés
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      query: { type: string }
+                      source: { type: string, description: "« fallback » si Groq est indisponible" }
+                      filtersUsed:
+                        type: object
+                        properties:
+                          category: { type: string, nullable: true }
+                          min_price: { type: number, nullable: true }
+                          max_price: { type: number, nullable: true }
+                          tags: { type: array, items: { type: string } }
+                      count: { type: integer }
+                      products: { type: array, items: { $ref: '#/components/schemas/SearchResult' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /search:
+    get:
+      tags: [Recherche]
+      security: []
+      summary: Recherche textuelle classique
+      parameters: [{ name: q, in: query, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Produits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      query: { type: string }
+                      count: { type: integer }
+                      products: { type: array, items: { $ref: '#/components/schemas/SearchResult' } }
+
+  # ---------------------------------------------------------------- Admin
+  /api/admin/products:
+    get:
+      tags: [Admin]
+      summary: Produits (y compris inactifs sur demande) et statistiques
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: includeInactive, in: query, schema: { type: boolean } }]
+      responses:
+        '200':
+          description: Produits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      products: { type: array, items: { $ref: '#/components/schemas/Product' } }
+                      stats:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          active: { type: integer }
+                          inactive: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Créer un produit
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ProductInput' }
+      responses:
+        '201': { $ref: '#/components/responses/ProductResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/products/{id}:
+    parameters: [{ $ref: '#/components/parameters/ProductId' }]
+    put:
+      tags: [Admin]
+      summary: Modifier un produit
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ProductInput' }
+      responses:
+        '200': { $ref: '#/components/responses/ProductResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Admin]
+      summary: Supprimer un produit
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/products/upload-image:
+    post:
+      tags: [Admin]
+      summary: Envoyer une image produit
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        '200':
+          description: Image enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      url: { type: string, example: /uploads/products/abc.jpg }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/categories:
+    get:
+      tags: [Admin]
+      summary: Catégories avec leur nombre de produits
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Catégories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/Category'
+                            - type: object
+                              properties:
+                                productCount: { type: integer }
+    post:
+      tags: [Admin]
+      summary: Créer une catégorie
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/CategoryInput' }
+      responses:
+        '201': { $ref: '#/components/responses/CategoryResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: Nom déjà utilisé, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/admin/categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    put:
+      tags: [Admin]
+      summary: Renommer une catégorie
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/CategoryInput' }
+      responses:
+        '200': { $ref: '#/components/responses/CategoryResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Nom déjà utilisé, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      tags: [Admin]
+      summary: Supprimer une catégorie
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Des produits sont liés à cette catégorie, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/admin/orders:
+    get:
+      tags: [Admin]
+      summary: Toutes les commandes, filtrables (utilisé aussi par l'export CSV)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
+        - { name: startDate, in: query, schema: { type: string, format: date } }
+        - { name: endDate, in: query, schema: { type: string, format: date } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: userEmail, in: query, description: Recherche partielle, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+      responses:
+        '200':
+          description: Commandes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      orders: { type: array, items: { $ref: '#/components/schemas/AdminOrder' } }
+                      pagination:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          limit: { type: integer }
+                          total: { type: integer }
+                          totalPages: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/orders/{orderId}:
+    get:
+      tags: [Admin]
+      summary: Détail d'une commande avec son historique d'états
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      responses:
+        '200':
+          description: Commande
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/AdminOrder'
+                      - type: object
+                        properties:
+                          statusHistory: { type: array, items: { $ref: '#/components/schemas/StatusHistoryEntry' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/orders/{orderId}/status:
+    put:
+      tags: [Admin]
+      summary: Changer l'état d'une commande (confirmed → processing → shipped → delivered)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrderId' }]
+      requestBody: { $ref: '#/components/requestBodies/NewStatus' }
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '400': { description: Transition invalide, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Clients inscrits
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/User'
+                            - type: object
+                              properties:
+                                createdAt: { type: string, format: date-time }
+                                isActive: { type: boolean }
+                                ordersCount: { type: integer }
+                      pagination: { type: object }
+  /api/admin/users/{userId}:
+    get:
+      tags: [Admin]
+      summary: Profil client, commandes et total dépensé
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses:
+        '200':
+          description: Client
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+                      orders: { type: array, items: { $ref: '#/components/schemas/AdminOrder' } }
+                      totalSpent: { type: number, description: Hors commandes annulées }
+                      ordersCount: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/users/{userId}/deactivate:
+    put:
+      tags: [Admin]
+      summary: Désactiver un compte client (sans suppression)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { description: Un admin ne peut pas désactiver son propre compte, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/users/{userId}/reactivate:
+    put:
+      tags: [Admin]
+      summary: Réactiver un compte client
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UserId' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/analytics/revenue:
+    get:
+      tags: [Admin]
+      summary: Chiffre d'affaires par période (hors commandes annulées)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: period, in: query, schema: { type: string, enum: [7d, 30d, 12m], default: 7d } }]
+      responses:
+        '200':
+          description: Série
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      period: { type: string }
+                      series:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string }
+                            revenue: { type: number }
+                            ordersCount: { type: integer }
+                      totalRevenue: { type: number }
+                      totalOrders: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/analytics/top-products:
+    get:
+      tags: [Admin]
+      summary: Produits les plus vendus
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: limit, in: query, schema: { type: integer, default: 10 } }]
+      responses:
+        '200':
+          description: Top produits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            productId: { type: string, format: uuid }
+                            name: { type: string }
+                            quantitySold: { type: integer }
+                            revenue: { type: number }
+  /api/admin/dashboard/metrics:
+    get:
+      tags: [Admin]
+      summary: Métriques clés du tableau de bord
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Métriques
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      totalRevenue: { type: number }
+                      todayOrdersCount: { type: integer }
+                      newCustomersCount: { type: integer }
+                      outOfStockCount: { type: integer }
+                      lowStockProducts: { type: array, items: { $ref: '#/components/schemas/Product' } }
+  /api/admin/dashboard/recent-orders:
+    get:
+      tags: [Admin]
+      summary: 10 dernières commandes
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Commandes récentes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      orders: { type: array, items: { $ref: '#/components/schemas/AdminOrder' } }
+
+  # ---------------------------------------------------------------- Interne
+  /api/internal/chatbot-catalog:
+    get:
+      tags: [Interne]
+      security: []
+      summary: Catalogue formaté pour le chatbot (appel Flask → Node, réseau interne uniquement)
+      responses:
+        '200':
+          description: Catalogue texte
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogue: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ProductId: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    CartProductId: { name: product_id, in: path, required: true, schema: { type: string, format: uuid } }
+    OrderId: { name: orderId, in: path, required: true, schema: { type: string, example: ORD-MV5AJXSG-L6H03Y } }
+    UserId: { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+
+  requestBodies:
+    RefreshToken:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [refreshToken]
+            properties:
+              refreshToken: { type: string }
+    CartAdd:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+    CartQuantity:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [quantity]
+            properties:
+              quantity: { type: integer, minimum: 1 }
+    NewStatus:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [newStatus]
+            properties:
+              newStatus: { $ref: '#/components/schemas/OrderStatus' }
+    ProductInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name: { type: string }
+              description: { type: string }
+              price: { type: number, minimum: 0 }
+              categoryId: { type: string, format: uuid }
+              stock: { type: integer, minimum: 0 }
+              images: { type: array, items: { type: string } }
+              tags: { type: array, items: { type: string } }
+              isActive: { type: boolean }
+    CategoryInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name]
+            properties:
+              name: { type: string }
+              description: { type: string }
+
+  responses:
+    Success:
+      description: Opération réussie
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+              data: { type: object }
+    BadRequest:
+      description: Données invalides
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unauthorized:
+      description: Token absent ou invalide
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Rôle admin requis
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Ressource introuvable (ou appartenant à un autre utilisateur)
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    AuthSuccess:
+      description: Utilisateur et tokens
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+              data:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+    CartResponse:
+      description: Panier
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              data: { $ref: '#/components/schemas/Cart' }
+    WishlistResponse:
+      description: Favoris
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+              data:
+                type: object
+                properties:
+                  wishlistId: { type: string, format: uuid }
+                  userId: { type: string, format: uuid }
+                  itemsCount: { type: integer }
+                  items: { type: array, items: { type: object } }
+    ProductResponse:
+      description: Produit
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              data:
+                type: object
+                properties:
+                  product: { $ref: '#/components/schemas/Product' }
+    CategoryResponse:
+      description: Catégorie
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              data:
+                type: object
+                properties:
+                  category: { $ref: '#/components/schemas/Category' }
+    StatusChanged:
+      description: État mis à jour (et ajouté à l'historique)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean }
+              message: { type: string }
+              data:
+                type: object
+                properties:
+                  orderId: { type: string }
+                  previousStatus: { $ref: '#/components/schemas/OrderStatus' }
+                  currentStatus: { $ref: '#/components/schemas/OrderStatus' }
+                  availableTransitions: { type: array, items: { $ref: '#/components/schemas/OrderStatus' } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors: { type: array, items: { type: object } }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, enum: [client, admin] }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+    Product:
+      type: object
+      description: Schéma partagé du cahier 01, §3 (en camelCase dans l'API)
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, description: Prix TTC en euros }
+        stock: { type: integer }
+        images: { type: array, items: { type: string } }
+        tags: { type: array, items: { type: string } }
+        isActive: { type: boolean }
+        ratingAvg: { type: number, description: Calculé à partir des avis }
+        ratingCount: { type: integer }
+        category: { $ref: '#/components/schemas/Category' }
+    SearchResult:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        price: { type: number }
+        image: { type: string, nullable: true }
+        category: { type: string }
+        tags: { type: array, items: { type: string } }
+        ratingAvg: { type: number }
+    Review:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            email: { type: string, description: Masqué (ex. am***@example.com) }
+    Cart:
+      type: object
+      properties:
+        userId: { type: string, format: uuid }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              productId: { type: string, format: uuid }
+              quantity: { type: integer }
+              price: { type: number }
+              product: { $ref: '#/components/schemas/Product' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Address:
+      type: object
+      required: [fullName, address, city, postalCode]
+      properties:
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+    OrderStatus:
+      type: string
+      description: pending → confirmed → processing → shipped → delivered ; cancelled uniquement depuis pending
+      enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+    OrderItem:
+      type: object
+      description: Snapshot au moment de l'achat (le prix ne suit pas les changements du catalogue)
+      properties:
+        productId: { type: string, format: uuid }
+        name: { type: string }
+        image: { type: string, nullable: true }
+        price: { type: number }
+        quantity: { type: integer }
+        total: { type: number }
+    OrderDates:
+      type: object
+      properties:
+        createdAt: { type: string, format: date-time }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        processingAt: { type: string, format: date-time, nullable: true }
+        shippedAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        cancelledAt: { type: string, format: date-time, nullable: true }
+    Order:
+      allOf:
+        - $ref: '#/components/schemas/OrderDates'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            orderId: { type: string }
+            status: { $ref: '#/components/schemas/OrderStatus' }
+            totalAmount: { type: number }
+            items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+            shippingAddress: { $ref: '#/components/schemas/Address' }
+            paymentMethod: { type: string, nullable: true }
+            trackingNumber: { type: string, nullable: true }
+            availableTransitions: { type: array, items: { $ref: '#/components/schemas/OrderStatus' } }
+            isCancelable: { type: boolean }
+            updatedAt: { type: string, format: date-time }
+    AdminOrder:
+      allOf:
+        - $ref: '#/components/schemas/Order'
+        - type: object
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+    StatusHistoryEntry:
+      type: object
+      properties:
+        fromStatus:
+          type: string
+          nullable: true
+          enum: [pending, confirmed, processing, shipped, delivered, cancelled, null]
+          description: null à la création de la commande
+        toStatus: { $ref: '#/components/schemas/OrderStatus' }
+        changedAt: { type: string, format: date-time }
+        changedBy:
+          type: object
+          nullable: true
+          description: null pour le système (webhook de paiement, historique reconstitué)
+          allOf: [{ $ref: '#/components/schemas/User' }]

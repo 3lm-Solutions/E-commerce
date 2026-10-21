@@ -1,26 +1,21 @@
 import { create } from "zustand";
 import toast from "react-hot-toast";
+import { apiFetch } from "../lib/api";
 
 /*
- * Helper : récupère les headers d'authentification JWT depuis localStorage.
- * La clé "token" est cohérente avec useAuth.js.
+ * Helper : headers JSON. Le header Authorization est ajouté par apiFetch.
  */
 function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  return { "Content-Type": "application/json" };
 }
 
 /*
- * Helper : gère les erreurs 401 (token expiré / absent).
- * Redirige vers /login pour que l'utilisateur se reconnecte.
+ * Helper : gère les erreurs 401.
+ * apiFetch a déjà tenté un refresh et vidé la session s'il a échoué :
+ * on redirige vers /login pour que l'utilisateur se reconnecte.
  */
 function handleAuthError(status) {
   if (status === 401) {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
     window.location.href = "/login";
     return true;
   }
@@ -80,13 +75,14 @@ function mapWishItems(items) {
  */
 function mapOrderStatus(status) {
   const map = {
-    pending: "En préparation",
+    pending: "En attente de paiement",
     confirmed: "Confirmée",
+    processing: "En préparation",
     shipped: "En transit",
     delivered: "Livré",
-    canceled: "Annulé",
+    cancelled: "Annulé",
   };
-  return map[status?.toLowerCase()] || status || "En préparation";
+  return map[status?.toLowerCase()] || status || "En attente de paiement";
 }
 
 /*
@@ -116,7 +112,7 @@ function mapOrders(orders) {
       orderId: order.orderId,
       internalId: order.id,
       date: order.createdAt
-        ? new Date(order.createdAt).toLocaleDateString("en-US", {
+        ? new Date(order.createdAt).toLocaleDateString("fr-FR", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -156,6 +152,11 @@ const initialState = {
 const useCartStore = create((set, get) => ({
   ...initialState,
 
+  /**
+   * Vide le panier, la wishlist et les commandes en mémoire (à la déconnexion).
+   */
+  reset: () => set(initialState),
+
   /* ─────────────────────────────────────────────
    *  PANIER
    * ───────────────────────────────────────────── */
@@ -166,7 +167,7 @@ const useCartStore = create((set, get) => ({
    */
   fetchCart: async () => {
     try {
-      const res = await fetch("/api/cart", { headers: getAuthHeaders() });
+      const res = await apiFetch("/api/cart", { headers: getAuthHeaders() });
       if (handleAuthError(res.status)) return;
       if (!res.ok) throw new Error("Erreur lors du chargement du panier");
       const json = await res.json();
@@ -182,12 +183,12 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Ajoute un produit au panier.
-   * POST /api/cart/add avec { product_id, quantity }
+   * POST /api/cart/items avec { product_id, quantity }
    */
   addProductToCart: async (product, qty = 1) => {
     const quantity = qty > 0 ? qty : 1;
     try {
-      const res = await fetch("/api/cart/add", {
+      const res = await apiFetch("/api/cart/items", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({ product_id: product.id, quantity }),
@@ -224,11 +225,11 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Supprime un produit du panier.
-   * DELETE /api/cart/remove/:product_id
+   * DELETE /api/cart/items/:product_id
    */
   deleteProductFromCart: async (productId) => {
     try {
-      const res = await fetch(`/api/cart/remove/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -251,7 +252,7 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Augmente la quantité d'un produit dans le panier.
-   * PUT /api/cart/update/:product_id avec la nouvelle quantité
+   * PUT /api/cart/items/:product_id avec la nouvelle quantité
    */
   increaseQuantity: async (productId) => {
     const state = get();
@@ -260,7 +261,7 @@ const useCartStore = create((set, get) => ({
     const newQty = item.quantity + 1;
 
     try {
-      const res = await fetch(`/api/cart/update/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ quantity: newQty }),
@@ -286,7 +287,7 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Diminue la quantité d'un produit dans le panier.
-   * PUT /api/cart/update/:product_id avec la nouvelle quantité (min 1)
+   * PUT /api/cart/items/:product_id avec la nouvelle quantité (min 1)
    */
   decreaseQuantity: async (productId) => {
     const state = get();
@@ -295,7 +296,7 @@ const useCartStore = create((set, get) => ({
     const newQty = Math.max(1, item.quantity - 1);
 
     try {
-      const res = await fetch(`/api/cart/update/${productId}`, {
+      const res = await apiFetch(`/api/cart/items/${productId}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ quantity: newQty }),
@@ -321,11 +322,11 @@ const useCartStore = create((set, get) => ({
 
   /**
    * Vide le panier.
-   * DELETE /api/cart/clear
+   * DELETE /api/cart
    */
   clearCart: async () => {
     try {
-      const res = await fetch("/api/cart/clear", {
+      const res = await apiFetch("/api/cart", {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -355,7 +356,7 @@ const useCartStore = create((set, get) => ({
    */
   fetchWishlist: async () => {
     try {
-      const res = await fetch("/api/wishlist", { headers: getAuthHeaders() });
+      const res = await apiFetch("/api/wishlist", { headers: getAuthHeaders() });
       if (handleAuthError(res.status)) return;
       if (!res.ok) throw new Error("Erreur lors du chargement de la wishlist");
       const json = await res.json();
@@ -380,7 +381,7 @@ const useCartStore = create((set, get) => ({
     if (wished) {
       // Supprimer
       try {
-        const res = await fetch(`/api/wishlist/${product.id}`, {
+        const res = await apiFetch(`/api/wishlist/${product.id}`, {
           method: "DELETE",
           headers: getAuthHeaders(),
         });
@@ -410,7 +411,7 @@ const useCartStore = create((set, get) => ({
     } else {
       // Ajouter
       try {
-        const res = await fetch("/api/wishlist", {
+        const res = await apiFetch("/api/wishlist", {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify({ productId: product.id }),
@@ -448,7 +449,7 @@ const useCartStore = create((set, get) => ({
    */
   deleteFromWishList: async (id) => {
     try {
-      const res = await fetch(`/api/wishlist/${id}`, {
+      const res = await apiFetch(`/api/wishlist/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -483,7 +484,7 @@ const useCartStore = create((set, get) => ({
    */
   clearWish: async () => {
     try {
-      const res = await fetch("/api/wishlist", {
+      const res = await apiFetch("/api/wishlist", {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -525,7 +526,7 @@ const useCartStore = create((set, get) => ({
       await get().addProductToCart(product, 1);
 
       // Supprimer de la wishlist
-      const res = await fetch(`/api/wishlist/${id}`, {
+      const res = await apiFetch(`/api/wishlist/${id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -550,7 +551,7 @@ const useCartStore = create((set, get) => ({
    */
   fetchOrders: async () => {
     try {
-      const res = await fetch("/api/orders", { headers: getAuthHeaders() });
+      const res = await apiFetch("/api/orders", { headers: getAuthHeaders() });
       if (handleAuthError(res.status)) return;
       if (!res.ok) throw new Error("Erreur lors du chargement des commandes");
       const json = await res.json();
@@ -569,7 +570,7 @@ const useCartStore = create((set, get) => ({
    */
   fetchOrder: async (orderId) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await apiFetch(`/api/orders/${orderId}`, {
         headers: getAuthHeaders(),
       });
       if (handleAuthError(res.status)) return null;
@@ -586,6 +587,56 @@ const useCartStore = create((set, get) => ({
   },
 
   /**
+   * Annule une commande (backend : statut pending uniquement).
+   * PUT /api/orders/:orderId/cancel
+   * Retourne { ok, message } ; message = celui du backend en cas de refus.
+   */
+  cancelOrder: async (orderId) => {
+    try {
+      const res = await apiFetch(`/api/orders/${orderId}/cancel`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({}),
+      });
+      if (handleAuthError(res.status)) return { ok: false, message: "Session expirée." };
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        return { ok: false, message: json?.message || "Impossible d'annuler la commande." };
+      }
+      // Met à jour la liste déjà chargée (page Mes commandes)
+      set((state) => ({
+        orders: (state.orders || []).map((o) =>
+          o.id === orderId ? { ...o, _status: "cancelled", status: mapOrderStatus("cancelled") } : o
+        ),
+      }));
+      return { ok: true, message: json?.message || "Commande annulée." };
+    } catch (err) {
+      console.error("cancelOrder error:", err);
+      return { ok: false, message: "Erreur réseau. Veuillez réessayer." };
+    }
+  },
+
+  /**
+   * Suivi d'une commande.
+   * GET /api/orders/:orderId/tracking
+   * Retourne { status, trackingNumber, progress: { timeline: [{ step, completed, date }] }, ... } ou null.
+   */
+  fetchOrderTracking: async (orderId) => {
+    try {
+      const res = await apiFetch(`/api/orders/${orderId}/tracking`, {
+        headers: getAuthHeaders(),
+      });
+      if (handleAuthError(res.status)) return null;
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json?.data || null;
+    } catch (err) {
+      console.error("fetchOrderTracking error:", err);
+      return null;
+    }
+  },
+
+  /**
    * Crée une commande à partir du panier.
    * POST /api/orders
    * body (optionnel) : { shippingAddress, billingAddress, paymentMethod }
@@ -593,7 +644,7 @@ const useCartStore = create((set, get) => ({
    */
   createOrder: async (orderData = {}) => {
     try {
-      const res = await fetch("/api/orders", {
+      const res = await apiFetch("/api/orders", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(orderData),

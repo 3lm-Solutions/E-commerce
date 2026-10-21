@@ -121,11 +121,44 @@ const useAuth = create((set, get) => ({
     }
   },
 
-  logout: () => {
+  /**
+   * Met à jour les tokens après un POST /api/auth/refresh (voir lib/api.js).
+   */
+  setTokens: (token, refreshToken) => {
+    localStorage.setItem("token", token);
+    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+    set({ token });
+  },
+
+  /**
+   * Vide la session locale sans appeler le backend
+   * (utilisé quand le refresh token est invalide ou expiré).
+   */
+  clearSession: () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
     set({ user: null, token: null, isAuthenticated: false, error: null });
+  },
+
+  /**
+   * Déconnexion : invalide le refresh token côté serveur (POST /api/auth/logout),
+   * puis vide la session locale. Un échec réseau n'empêche pas la déconnexion locale.
+   */
+  logout: async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (refreshToken) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch (err) {
+        console.error("logout error:", err);
+      }
+    }
+    get().clearSession();
   },
 
   clearError: () => set({ error: null }),

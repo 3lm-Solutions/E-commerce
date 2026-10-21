@@ -15,7 +15,9 @@ class EventController {
             });
         }
 
-        const { user_id, product_id, session_id } = req.body;
+        // Utilisateur issu du token (verifyToken), jamais du body
+        const user_id = req.user.id;
+        const { product_id, session_id } = req.body;
 
         // Vérifier que l'utilisateur existe
         const user = await User.findByPk(user_id);
@@ -80,7 +82,9 @@ class EventController {
             });
         }
 
-        const { user_id, product_ids, total_amount, session_id } = req.body;
+        // Utilisateur issu du token (verifyToken), jamais du body
+        const user_id = req.user.id;
+        const { product_ids, total_amount, session_id } = req.body;
 
         // Vérifier que l'utilisateur existe
         const user = await User.findByPk(user_id);

@@ -23,15 +23,10 @@
   }
 }
 
+/* 3 colonnes au maximum sur desktop (cahier 06 §2.2), comme la grille de Products.jsx */
 @media (min-width: 1024px) {
   .product-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .product-grid {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

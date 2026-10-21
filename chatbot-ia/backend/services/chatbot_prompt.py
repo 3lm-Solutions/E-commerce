@@ -43,7 +43,7 @@ def build_system_prompt(catalogue_text):
         "",
         "## Contexte produit (catalogue)",
         "Voici la liste des produits actuellement disponibles dans notre catalogue. "
-        "Chaque ligne est au format : \"Nom - Prix - Catégorie - Stock\".",
+        "Chaque ligne est au format : \"Nom - Prix - Catégorie - Stock - Note (si le produit a des avis) - Description\".",
         "Utilise UNIQUEMENT ces informations pour répondre aux questions sur les produits, les prix et les stocks.",
         "",
         catalogue_section,
@@ -51,12 +51,14 @@ def build_system_prompt(catalogue_text):
         "## Capacités",
         "- Recommander des produits adaptés aux besoins du client en t'appuyant uniquement sur le catalogue fourni.",
         "- Répondre aux questions sur les prix, les stocks et les catégories de produits.",
+        "- Comparer des produits à partir de leur description et de leur note (avec le nombre d'avis : une note sur 1 avis pèse moins qu'une note sur 12 avis).",
         "- Aider au suivi de commande. Les statuts possibles d'une commande sont : " + ", ".join(ORDER_STATUSES) + ".",
         "- Expliquer brièvement ce que signifie chaque statut de commande si le client le demande.",
         "",
         "## Limites",
         "- Ne JAMAIS inventer un produit qui n'est pas présent dans le catalogue fourni.",
         "- Ne JAMAIS donner un prix ou un stock qui ne figure pas dans le catalogue fourni.",
+        "- Ne JAMAIS ajouter de caractéristique technique absente de la description fournie.",
         "- Si une information n'est pas dans le catalogue ou concerne un sujet hors e-commerce, "
         "indique que tu ne peux pas y répondre et redirige le client vers le support humain.",
         "- Ne pas donner d'avis médical, juridique ou financier.",

@@ -1,4 +1,23 @@
-const { Order, Cart, CartItem, User } = require('../../models');
+const { Order, Cart, CartItem, User, Product, sequelize } = require('../../models');
+
+/**
+ * Erreur levée dans la transaction de createOrder quand un produit manque :
+ * annule la transaction et donne les détails du conflit (réponse 409).
+ */
+class StockConflictError extends Error {
+  constructor(conflicts) {
+    super('Stock insuffisant : ' + conflicts
+      .map(c => `${c.name} (demandé ${c.requested}, disponible ${c.available})`)
+      .join(', '));
+    this.conflicts = conflicts;
+  }
+}
+/**
+ * Erreur levée dans la transaction de createOrder quand le panier est absent
+ * ou vide (réponse 400). Cas typique : une 2e requête simultanée (double clic)
+ * qui attend le verrou du panier et le trouve vidé par la 1re.
+ */
+class EmptyCartError extends Error {}
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -7,7 +26,7 @@ const { v4: uuidv4 } = require('uuid');
  * 
  * Fonctionnalités:
  * - Création de commandes depuis le panier (FonctionnalitéHaute#1778)
- * - Gestion machine à états (pending -> confirmed -> shipped -> delivered) (FonctionnalitéHaute#1777)
+ * - Gestion machine à états (pending -> confirmed -> processing -> shipped -> delivered) (FonctionnalitéHaute#1777)
  * - Historique et consultation des commandes (FonctionnalitéHaute#1779)
  * - Validation des transitions de statut
  * - Sécurité : utilisateurs n'accèdent qu'à leurs propres commandes
@@ -25,62 +44,110 @@ class OrderController {
   static async createOrder(req, res) {
     try {
       const userId = req.user.id;
-      const { shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+      const { shippingAddress, billingAddress, paymentMethod, notes } = req.body || {};
 
       console.log(`📦 Création de commande pour l'utilisateur ${userId}`);
 
-      // Sous-tâche 1: Récupérer le panier de l'utilisateur via findByUserId
-      const cart = await Cart.findByUserId(userId);
-      
-      if (!cart) {
-        return res.status(400).json({
-          success: false,
-          message: 'Aucun panier trouvé pour cet utilisateur'
+      // Transaction : verrouillage du panier puis des produits, contrôle et
+      // décrément du stock, création de la commande et vidage du panier.
+      // Tout est annulé en cas d'échec.
+      const order = await sequelize.transaction(async (t) => {
+        // Sous-tâche 1 : panier verrouillé (FOR UPDATE) et lu dans la transaction.
+        // Deux requêtes simultanées passent l'une après l'autre : la 2e trouve
+        // le panier vidé par la 1re au lieu de créer une commande en double.
+        const cart = await Cart.findOne({
+          where: { userId },
+          lock: t.LOCK.UPDATE,
+          transaction: t
         });
-      }
+        if (!cart) {
+          throw new EmptyCartError('Aucun panier trouvé pour cet utilisateur');
+        }
 
-      // Sous-tâche 2: Vérifier que panier.items.length > 0
-      if (!cart.items || cart.items.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Le panier est vide. Ajoutez des produits avant de passer commande.'
+        // Sous-tâche 2 : vérifier que le panier contient des articles
+        const cartItems = await CartItem.findAll({
+          where: { cartId: cart.id },
+          order: [['created_at', 'ASC']],
+          transaction: t
         });
-      }
+        if (cartItems.length === 0) {
+          throw new EmptyCartError('Le panier est vide. Ajoutez des produits avant de passer commande.');
+        }
+        console.log(`🛒 Panier trouvé avec ${cartItems.length} items`);
 
-      console.log(`🛒 Panier trouvé avec ${cart.items.length} items`);
+        const productIds = cartItems.map(item => item.productId);
+        // FOR UPDATE, dans un ordre fixe pour éviter les interblocages entre deux commandes
+        const products = await Product.findAll({
+          where: { id: productIds },
+          order: [['id', 'ASC']],
+          lock: t.LOCK.UPDATE,
+          transaction: t
+        });
+        const productsById = new Map(products.map(p => [p.id, p]));
 
-      // Copier les items du panier dans la commande
-      const orderItems = cart.items.map(item => ({
-        productId: item.productId,
-        name: item.name || 'Produit',
-        price: parseFloat(item.price) || 0,
-        quantity: item.quantity || 1,
-        total: (parseFloat(item.price) || 0) * (item.quantity || 1)
-      }));
+        const conflicts = [];
+        for (const item of cartItems) {
+          const product = productsById.get(item.productId);
+          const available = product && product.isActive ? product.stock : 0;
+          if (available < item.quantity) {
+            conflicts.push({
+              productId: item.productId,
+              name: product ? product.name : 'Produit indisponible',
+              requested: item.quantity,
+              available
+            });
+          }
+        }
+        if (conflicts.length > 0) {
+          throw new StockConflictError(conflicts);
+        }
 
-      // Calculer le totalAmount
-      const totalAmount = orderItems.reduce((sum, item) => sum + item.total, 0);
+        // Snapshot des produits au moment de l'achat (nom, prix actuel, image) :
+        // la commande ne dépend plus de la table products ensuite.
+        // stockReserved : le stock a été décrémenté, il sera remis en cas d'annulation.
+        const orderItems = cartItems.map(item => {
+          const product = productsById.get(item.productId);
+          const price = parseFloat(product.price) || 0;
+          return {
+            productId: product.id,
+            name: product.name,
+            price,
+            image: (product.images && product.images[0]) || null,
+            quantity: item.quantity,
+            total: Math.round(price * item.quantity * 100) / 100,
+            stockReserved: true
+          };
+        });
 
-      console.log(`💰 Total calculé: ${totalAmount}€`);
+        for (const item of orderItems) {
+          await productsById.get(item.productId).decrement('stock', { by: item.quantity, transaction: t });
+        }
 
-      // Créer la commande avec status=pending
-      const order = await Order.create({
-        id: uuidv4(),
-        orderId: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        userId: userId,
-        items: orderItems,
-        totalAmount: totalAmount,
-        status: 'pending', // Status initial selon spécification FonctionnalitéHaute#1778
-        shippingAddress: shippingAddress || null,
-        billingAddress: billingAddress || null,
-        paymentMethod: paymentMethod || null,
-        notes: notes || null
+        const totalAmount = Math.round(orderItems.reduce((sum, item) => sum + item.total, 0) * 100) / 100;
+        console.log(`💰 Total calculé: ${totalAmount}€`);
+
+        // Créer la commande avec status=pending
+        const created = await Order.create({
+          id: uuidv4(),
+          orderId: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          userId: userId,
+          items: orderItems,
+          totalAmount: totalAmount,
+          status: 'pending', // Status initial selon spécification FonctionnalitéHaute#1778
+          shippingAddress: shippingAddress || null,
+          billingAddress: billingAddress || null,
+          paymentMethod: paymentMethod || null,
+          notes: notes || null
+        }, { transaction: t });
+
+        // Sous-tâche 3: vider le panier (dans la même transaction)
+        await cart.clear({ transaction: t });
+
+        return created;
       });
 
+      const totalAmount = parseFloat(order.totalAmount);
       console.log(`✅ Commande créée: ${order.orderId} (Status: ${order.status})`);
-
-      // Sous-tâche 3: Appeler cart.clear() pour vider le panier
-      await cart.clear();
 
       // Retourner la réponse selon la spécification: { orderId, total, status: 'pending' }
       res.status(201).json({
@@ -94,6 +161,19 @@ class OrderController {
       });
 
     } catch (error) {
+      if (error instanceof EmptyCartError) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+      if (error instanceof StockConflictError) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+          conflicts: error.conflicts
+        });
+      }
       console.error('Erreur lors de la création de commande:', error);
       res.status(500).json({
         success: false,
@@ -111,8 +191,7 @@ class OrderController {
   static async updateOrderStatus(req, res) {
     try {
       const { orderId } = req.params;
-      const { newStatus } = req.body;
-      const userId = req.user.id;
+      const { newStatus } = req.body || {};
 
       console.log(`🔄 Tentative de mise à jour statut commande ${orderId}: -> ${newStatus}`);
 
@@ -131,12 +210,10 @@ class OrderController {
         });
       }
 
-      // Trouver la commande
+      // Trouver la commande (route réservée aux admins : n'importe quelle commande,
+      // pas seulement celles passées par l'admin connecté)
       const order = await Order.findOne({
-        where: { 
-          orderId: orderId,
-          userId: userId // S'assurer que l'utilisateur possède cette commande
-        }
+        where: { orderId: orderId }
       });
 
       if (!order) {
@@ -148,7 +225,7 @@ class OrderController {
 
       // Tenter la mise à jour du statut (avec validation automatique)
       try {
-        await order.updateStatus(newStatus);
+        await order.updateStatus(newStatus, { changedBy: req.user.id });
 
         res.status(200).json({
           success: true,
@@ -221,7 +298,8 @@ class OrderController {
         attributes: [
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
-          'trackingNumber', 'notes', 'created_at', 'updated_at'
+          'trackingNumber', 'notes', 'created_at', 'updated_at',
+          'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -238,6 +316,7 @@ class OrderController {
         items: order.items?.map(item => ({
           productId: item.productId,
           name: item.name,
+          image: item.image || null,
           quantity: item.quantity,
           price: parseFloat(item.price),
           total: parseFloat(item.total || (item.price * item.quantity))
@@ -256,10 +335,11 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceled_at,
-        confirmedAt: order.confirmed_at,
-        shippedAt: order.shipped_at,
-        deliveredAt: order.delivered_at
+        cancelledAt: order.cancelledAt,
+        confirmedAt: order.confirmedAt,
+        processingAt: order.processingAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt
       }));
 
       // Pagination détaillée
@@ -325,7 +405,8 @@ class OrderController {
         attributes: [
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
-          'trackingNumber', 'notes', 'created_at', 'updated_at'
+          'trackingNumber', 'notes', 'created_at', 'updated_at',
+          'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -350,6 +431,7 @@ class OrderController {
         items: order.items?.map(item => ({
           productId: item.productId, // product_id selon spécification
           name: item.name,
+          image: item.image || null,
           quantity: item.quantity,
           price: parseFloat(item.price),
           total: parseFloat(item.total || (item.price * item.quantity))
@@ -379,10 +461,11 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceled_at,
-        confirmedAt: order.confirmed_at,
-        shippedAt: order.shipped_at,
-        deliveredAt: order.delivered_at
+        cancelledAt: order.cancelledAt,
+        confirmedAt: order.confirmedAt,
+        processingAt: order.processingAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt
       };
 
       // Log des détails pour debugging
@@ -457,7 +540,7 @@ class OrderController {
   /**
    * PUT /api/orders/:orderId/cancel - Annuler une commande (FonctionnalitéMoyenne#1782)
    * Sous-tâche 1: Implémenter PUT /orders/:id/cancel : vérifier que status=pending avant d'autoriser
-   * Sous-tâche 2: Créer un champ canceledAt et passer status à 'canceled'
+   * Sous-tâche 2: Créer un champ cancelledAt et passer status à 'cancelled'
    * 
    * @param {Object} req - Requête Express
    * @param {Object} res - Réponse Express
@@ -466,7 +549,8 @@ class OrderController {
     try {
       const { orderId } = req.params;
       const userId = req.user.id;
-      const { reason } = req.body; // Raison d'annulation optionnelle
+      // Raison d'annulation optionnelle (Express 5 : req.body absent sans corps)
+      const { reason } = req.body || {};
 
       console.log(`🚫 FonctionnalitéMoyenne#1782 - Tentative d'annulation commande ${orderId} par utilisateur ${userId}`);
 
@@ -511,7 +595,7 @@ class OrderController {
         });
       }
 
-      // Sous-tâche 2: Passer status à 'canceled' (automatiquement avec canceledAt via updateStatus)
+      // Sous-tâche 2: Passer status à 'cancelled' (automatiquement avec cancelledAt via updateStatus)
       try {
         // Ajouter la raison d'annulation aux notes si fournie
         if (reason) {
@@ -519,8 +603,8 @@ class OrderController {
           order.notes = order.notes ? `${order.notes}\n${cancelReason}` : cancelReason;
         }
 
-        // Utiliser updateStatus qui se charge de la validation et de la mise à jour de canceledAt
-        await order.updateStatus('canceled');
+        // Utiliser updateStatus qui se charge de la validation et de la mise à jour de cancelledAt
+        await order.updateStatus('cancelled', { changedBy: req.user.id });
 
         console.log(`✅ Commande ${orderId} annulée avec succès`);
 
@@ -531,7 +615,7 @@ class OrderController {
             orderId: order.orderId,
             previousStatus: 'pending',
             currentStatus: order.status,
-            canceledAt: order.canceledAt,
+            cancelledAt: order.cancelledAt,
             reason: reason || null,
             updatedAt: order.updated_at
           }
@@ -581,7 +665,7 @@ class OrderController {
         },
         attributes: [
           'orderId', 'status', 'trackingNumber',
-          'created_at', 'updated_at', 'canceled_at', 'confirmed_at', 'shipped_at', 'delivered_at'
+          'created_at', 'updated_at', 'cancelledAt', 'confirmedAt', 'processingAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -597,31 +681,33 @@ class OrderController {
         orderId: order.orderId,
         status: order.status,
         createdAt: order.created_at,
-        confirmedAt: order.confirmed_at || null,
-        shippedAt: order.shipped_at || null,
-        deliveredAt: order.delivered_at || null,
-        canceledAt: order.canceled_at || null, // Ajout du support d'annulation
+        confirmedAt: order.confirmedAt || null,
+        processingAt: order.processingAt || null,
+        shippedAt: order.shippedAt || null,
+        deliveredAt: order.deliveredAt || null,
+        cancelledAt: order.cancelledAt || null, // Ajout du support d'annulation
         trackingNumber: order.trackingNumber || null
       };
 
       // Calculer les informations de progression
       const progressInfo = {
-        isCompleted: order.status === 'delivered' || order.status === 'canceled',
-        isCanceled: order.status === 'canceled',
+        isCompleted: order.status === 'delivered' || order.status === 'cancelled',
+        isCancelled: order.status === 'cancelled',
         currentStep: order.status,
         timeline: [
           { step: 'pending', completed: true, date: order.created_at },
-          { step: 'confirmed', completed: !!order.confirmed_at, date: order.confirmed_at },
-          { step: 'shipped', completed: !!order.shipped_at, date: order.shipped_at },
-          { step: 'delivered', completed: !!order.delivered_at, date: order.delivered_at }
+          { step: 'confirmed', completed: !!order.confirmedAt, date: order.confirmedAt },
+          { step: 'processing', completed: !!order.processingAt, date: order.processingAt },
+          { step: 'shipped', completed: !!order.shippedAt, date: order.shippedAt },
+          { step: 'delivered', completed: !!order.deliveredAt, date: order.deliveredAt }
         ]
       };
 
       // Si annulée, ajuster la timeline
-      if (order.status === 'canceled') {
+      if (order.status === 'cancelled') {
         progressInfo.timeline = [
           { step: 'pending', completed: true, date: order.created_at },
-          { step: 'canceled', completed: true, date: order.canceled_at }
+          { step: 'cancelled', completed: true, date: order.cancelledAt }
         ];
       }
 
@@ -659,11 +745,12 @@ class OrderController {
           statuses: Object.values(Order.STATUS),
           transitions: Order.VALID_TRANSITIONS,
           statusDescriptions: {
-            [Order.STATUS.PENDING]: 'En attente de confirmation',
-            [Order.STATUS.CONFIRMED]: 'Confirmée et en préparation',
+            [Order.STATUS.PENDING]: 'En attente de paiement',
+            [Order.STATUS.CONFIRMED]: 'Confirmée',
+            [Order.STATUS.PROCESSING]: 'En préparation',
             [Order.STATUS.SHIPPED]: 'Expédiée',
             [Order.STATUS.DELIVERED]: 'Livrée',
-            [Order.STATUS.CANCELED]: 'Annulée' // FonctionnalitéMoyenne#1782
+            [Order.STATUS.CANCELLED]: 'Annulée' // FonctionnalitéMoyenne#1782
           }
         }
       });

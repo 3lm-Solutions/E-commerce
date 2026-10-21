@@ -9,7 +9,7 @@
  */
 
 const { buildSystemPrompt, buildMessagesForClaude, MAX_HISTORY_MESSAGES } = require('../src/services/chatbotPrompt');
-const { getProductCatalogForChatbot, formatProductForChatbot, formatProductsAsText } = require('../src/services/productCatalogService');
+const { getProductCatalogForChatbot, formatProductForChatbot, formatProductsAsText, shortenDescription, MAX_DESCRIPTION_LENGTH } = require('../src/services/productCatalogService');
 
 // Mock du modèle Sequelize Product (et du module ../../models)
 jest.mock('../models', () => ({
@@ -24,7 +24,7 @@ jest.mock('../models', () => ({
 const { Product } = require('../models');
 
 describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte produit', () => {
-  const catalogueText = 'T-shirt Bleu - 199.99 MAD - Vêtements - Stock: 15';
+  const catalogueText = 'T-shirt Bleu - 199.99 € - Vêtements - Stock: 15';
 
   describe('buildSystemPrompt(catalogueText)', () => {
     test('✅ Inclut le texte du catalogue passé en paramètre', () => {
@@ -150,8 +150,8 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         limit: 20
       }));
 
-      expect(text).toContain('T-shirt Bleu - 199.99 MAD - Vêtements - Stock: 15');
-      expect(text).toContain('iPhone 15 Pro - 1200.00 MAD - Électronique - Stock: 25');
+      expect(text).toContain('T-shirt Bleu - 199.99 € - Vêtements - Stock: 15');
+      expect(text).toContain('iPhone 15 Pro - 1200.00 € - Électronique - Stock: 25');
     });
 
     test('✅ Retourne un message de repli si la requête échoue', async () => {
@@ -182,7 +182,10 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         name: 'Casque Gaming',
         price: 50.0,
         category: 'Audio',
-        stock: 7
+        stock: 7,
+        ratingAvg: 0,
+        ratingCount: 0,
+        description: ''
       });
     });
 
@@ -199,7 +202,10 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         name: 'MacBook Pro',
         price: 2499.99,
         category: 'Électronique',
-        stock: 10
+        stock: 10,
+        ratingAvg: 0,
+        ratingCount: 0,
+        description: ''
       });
     });
 
@@ -219,7 +225,41 @@ describe('FonctionnalitéHaute #1670 - Chatbot : prompt système avec contexte p
         { name: 'Produit B', price: 20.25, category: 'Cat B', stock: 0 }
       ]);
 
-      expect(text).toBe('1. Produit A - 10.50 MAD - Cat A - Stock: 3\n2. Produit B - 20.25 MAD - Cat B - Stock: 0');
+      expect(text).toBe('1. Produit A - 10.50 € - Cat A - Stock: 3\n2. Produit B - 20.25 € - Cat B - Stock: 0');
+    });
+
+    test('✅ formatProductsAsText ajoute la note (si avis) et la description', () => {
+      const text = formatProductsAsText([
+        { name: 'MacBook Pro 16"', price: 2499.99, category: 'Électronique', stock: 12, ratingAvg: 5, ratingCount: 1, description: 'Puce M3 Pro, 18GB de RAM.' },
+        { name: 'Sans avis', price: 10, category: 'Cat', stock: 1, ratingAvg: 0, ratingCount: 0, description: 'Description seule' }
+      ]);
+
+      expect(text).toBe(
+        '1. MacBook Pro 16" - 2499.99 € - Électronique - Stock: 12 - Note: 5/5 (1 avis) - Puce M3 Pro, 18GB de RAM.\n' +
+        '2. Sans avis - 10.00 € - Cat - Stock: 1 - Description seule'
+      );
+    });
+
+    test('✅ formatProductForChatbot arrondit la note et lit les colonnes raw', () => {
+      const formatted = formatProductForChatbot({
+        name: 'iPhone', price: '1199.99', stock: 25, ratingAvg: '4.80', ratingCount: '12',
+        description: '  Écran\nOLED   6,1 pouces  '
+      });
+
+      expect(formatted.ratingAvg).toBe(4.8);
+      expect(formatted.ratingCount).toBe(12);
+      expect(formatted.description).toBe('Écran OLED 6,1 pouces');
+    });
+
+    test('✅ shortenDescription coupe sur un mot et ajoute « … »', () => {
+      const long = 'mot '.repeat(60).trim(); // 239 caractères
+      const short = shortenDescription(long);
+
+      expect(short.endsWith('…')).toBe(true);
+      expect(short.length).toBeLessThanOrEqual(MAX_DESCRIPTION_LENGTH + 1);
+      expect(short).not.toMatch(/\s…$/);
+      expect(shortenDescription(null)).toBe('');
+      expect(shortenDescription('Court')).toBe('Court');
     });
   });
 });
