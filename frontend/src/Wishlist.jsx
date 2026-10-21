@@ -65,7 +65,7 @@ if (wishList.length === 0) {
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                  {
                      wishList.map((p)=>(
-                         <div className="bg-white border border-gray-200 rounded-2xl p-4 relative">
+                         <div key={p.id} className="bg-white border border-gray-200 rounded-2xl p-4 relative">
                            <Link to={`/product-detail/${p.id}`}>
                                 <button className="absolute top-3 right-3 bg-white rounded-full p-1.5 border hover:bg-indigo-600 hover:text-white">
                                       <EyeIcon></EyeIcon> 
