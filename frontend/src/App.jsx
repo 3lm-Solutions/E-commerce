@@ -17,6 +17,7 @@ import Login from './Login';
 import Register from './Register';
 import ForgotPassword from './ForgotPassword';
 import ProtectedRoute from './ProtectedRoute';
+import Help from './Help';
 
 // Nouveaux composants UX/UI
 import ErrorBoundary from './components/ErrorBoundary';
@@ -63,6 +64,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/aide" element={<Help />} />
 
                 {/* Route de test pour les composants UX/UI (développement) */}
                 {process.env.NODE_ENV === 'development' && (

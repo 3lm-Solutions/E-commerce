@@ -18,12 +18,12 @@ function Footer() {
           <ul className="space-y-2 text-sm">
             <li>
               <Link to="/" className="hover:text-indigo-500 transition-colors">
-                Home
+                Accueil
               </Link>
             </li>
             <li>
               <Link to="/products" className="hover:text-indigo-500 transition-colors">
-                Products
+                Produits
               </Link>
             </li>
           </ul>
@@ -32,10 +32,16 @@ function Footer() {
         <div>
           <h6 className="text-white font-semibold mb-3">Aide</h6>
           <ul className="space-y-2 text-sm">
-            <li className="hover:text-indigo-500 transition-colors cursor-pointer">FAQ</li>
-            <li className="hover:text-indigo-500 transition-colors cursor-pointer">Livraison</li>
-            <li className="hover:text-indigo-500 transition-colors cursor-pointer">Retours</li>
-            <li className="hover:text-indigo-500 transition-colors cursor-pointer">Contact</li>
+            <li>
+              <Link to="/aide#livraison" className="hover:text-indigo-500 transition-colors">
+                Livraison
+              </Link>
+            </li>
+            <li>
+              <Link to="/aide#retours" className="hover:text-indigo-500 transition-colors">
+                Retours
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
