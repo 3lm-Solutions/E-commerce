@@ -14,7 +14,7 @@ const router = express.Router();
  * @route   POST /api/auth/register
  * @desc    Inscription d'un nouvel utilisateur
  * @access  Public
- * @body    { email: string, password: string, role?: 'user'|'admin' }
+ * @body    { name: string, email: string, password: string } (un champ role est ignoré : toujours « client »)
  * @returns { user, accessToken, refreshToken }
  */
 router.post('/register', 
