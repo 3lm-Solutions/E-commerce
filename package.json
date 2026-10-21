@@ -29,6 +29,17 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio"
   },
+  "jest": {
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/frontend/",
+      "/chatbot-ia/"
+    ],
+    "moduleNameMapper": {
+      "^uuid$": "<rootDir>/src/tests/support/uuid.js"
+    }
+  },
   "keywords": [
     "ecommerce",
     "nodejs",
