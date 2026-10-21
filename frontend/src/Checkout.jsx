@@ -23,14 +23,14 @@ function Checkout() {
   }, [fetchCart]);
 
   const schema = z.object({
-      FullName: z.string().min(1, "Name cannot be empty"),
-      email: z.string().email("Invalid Email"),
-      phone: z.string().regex(/^\d{10}$/, "Phone number must contain exactly 10 digits"),
-      address: z.string().min(1, "Address cannot be empty"),
-      city: z.string().min(1, "City cannot be empty"),
-      postalCode: z.string().min(1, "Postal code cannot be empty"),
-      cardNumber: z.string().min(16, "Please enter a valid card number"),
-      ccv: z.string().min(3, "Enter a valid ccv").max(3, "Enter a valid ccv")
+      FullName: z.string().min(1, "Le nom est obligatoire"),
+      email: z.string().email("Adresse email invalide"),
+      phone: z.string().regex(/^\d{10}$/, "Le numéro de téléphone doit contenir 10 chiffres"),
+      address: z.string().min(1, "L'adresse est obligatoire"),
+      city: z.string().min(1, "La ville est obligatoire"),
+      postalCode: z.string().min(1, "Le code postal est obligatoire"),
+      cardNumber: z.string().min(16, "Numéro de carte invalide"),
+      ccv: z.string().min(3, "Cryptogramme invalide").max(3, "Cryptogramme invalide")
   });
 
   const {
@@ -48,7 +48,7 @@ function Checkout() {
 
 const onSubmit = async (data) => {
       if (cart.length === 0) {
-          toast.error("Your cart is empty!");
+          toast.error("Votre panier est vide");
           return;
       }
 
@@ -101,7 +101,7 @@ const onSubmit = async (data) => {
           // Le PaymentIntent a été créé avec succès
           console.log('PaymentIntent créé:', stripeJson?.data?.client_secret);
 
-          toast.success("Order placed successfully!", {
+          toast.success("Commande enregistrée", {
               style: { background: '#22c55e', color: '#fff', fontWeight: '500' },
               iconTheme: { primary: '#fff', secondary: '#22c55e' },
           });
@@ -121,10 +121,10 @@ const onSubmit = async (data) => {
           {/* Header */}
       <div className="flex items-center justify-between mb-10">
         <h1 className="text-4xl font-bold">
-          Checkout
+          Finaliser la commande
         </h1>
         <div className="text-sm text-gray-500">
-          Secure Checkout
+          Paiement sécurisé
         </div>
       </div>
 
@@ -136,18 +136,18 @@ const onSubmit = async (data) => {
             <div className="flex items-center gap-3 mb-6">
               <MapPin className="text-indigo-600" />
               <h2 className="text-2xl font-bold">
-                Shipping Information
+                Adresse de livraison
               </h2>
             </div>
       
             <div className="grid grid-cols-2 gap-5">
               <div>
                 <label className="font-medium block mb-2">
-                  Full Name
+                  Nom complet
                 </label>
                 <input
                   className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="First name" {...register("FullName")}
+                  placeholder="Prénom Nom" {...register("FullName")}
                 />
                 {errors.FullName && ( <p className="text-red-500 text-xs mt-1">{errors.FullName.message}</p> )}
               </div>
@@ -158,14 +158,14 @@ const onSubmit = async (data) => {
                 </label>
                 <input
                   className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="yourname@gmail.com" {...register("email")}
+                  placeholder="vous@exemple.com" {...register("email")}
                 />
                 {errors.email && ( <p className="text-red-500 text-xs mt-1">{errors.email.message}</p> )}
               </div>
 
               <div>
                 <label className="font-medium block mb-2">
-                  Phone
+                  Téléphone
                 </label>
                 <input
                   className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
@@ -176,10 +176,10 @@ const onSubmit = async (data) => {
 
               <div>
                 <label className="font-medium block mb-2">
-                  Country
+                  Pays
                 </label>
                 <select className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Morocco</option>
+                  <option>Maroc</option>
                   <option>France</option>
                 </select>
               </div>
@@ -187,18 +187,18 @@ const onSubmit = async (data) => {
 
             <div className="mt-5">
               <label className="font-medium block mb-2">
-                Address
+                Adresse
               </label>
               <input
                 className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Street..." {...register("address")}
+                placeholder="Numéro et rue" {...register("address")}
               />
               {errors.address && ( <p className="text-red-500 text-xs mt-1">{errors.address.message}</p> )}
             </div>
 
             <div className="mt-5">
               <label className="font-medium block mb-2">
-                Apartment (optional)
+                Complément d'adresse (facultatif)
               </label>
               <input
                 className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
@@ -208,7 +208,7 @@ const onSubmit = async (data) => {
             <div className="grid grid-cols-2 gap-5 mt-5">
               <div>
                 <label className="font-medium block mb-2">
-                  City
+                  Ville
                 </label>
                 <input className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" {...register("city")} />
                 {errors.city && ( <p className="text-red-500 text-xs mt-1">{errors.city.message}</p> )}
@@ -216,7 +216,7 @@ const onSubmit = async (data) => {
 
               <div>
                 <label className="font-medium block mb-2">
-                  Postal Code
+                  Code postal
                 </label>
                 <input className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" {...register("postalCode")} />
                   {errors.postalCode && ( <p className="text-red-500 text-xs mt-1">{errors.postalCode.message}</p> )}
@@ -229,14 +229,14 @@ const onSubmit = async (data) => {
             <div className="flex items-center gap-3 mb-6">
               <CreditCard className="text-indigo-600" />
               <h2 className="text-2xl font-bold">
-                Payment
+                Paiement
               </h2>
             </div>
 
             <div className="space-y-5">
               <div>
                 <label className="font-medium block mb-2">
-                  Card Number
+                  Numéro de carte
                 </label>
                 <input
                   placeholder="1234 5678 9012 3456"
@@ -252,14 +252,14 @@ const onSubmit = async (data) => {
                     Expiration
                   </label>
                   <input
-                    placeholder="MM/YY"
+                    placeholder="MM/AA"
                     className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
                 <div>
                   <label className="font-medium block mb-2">
-                    CVV
+                    Cryptogramme
                   </label>
                   <input
                     placeholder="123"
@@ -276,7 +276,7 @@ const onSubmit = async (data) => {
         {/* RIGHT */}
         <div className="bg-white border rounded-2xl shadow-sm p-6 h-fit sticky top-6">
           <h2 className="text-2xl font-bold mb-6">
-            Order Summary
+            Récapitulatif
           </h2>
 
           {cart.map(item=>(
@@ -291,7 +291,7 @@ const onSubmit = async (data) => {
                 {item.name}
               </h3>
               <p className="text-gray-500 text-sm">
-                Qty : {item.quantity}
+                Quantité : {item.quantity}
               </p>
             </div>
             <p className="ml-auto font-bold text-sm">
@@ -323,13 +323,13 @@ const onSubmit = async (data) => {
           {/* Désactivé pendant l'envoi : un double clic créait deux commandes */}
           <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={isSubmitting}>
             <Lock size={18} />
-            {isSubmitting ? "Traitement…" : "Pay Now"}
+            {isSubmitting ? "Traitement…" : "Payer"}
           </button>
 
           <div className="mt-8 space-y-4">
             <div className="flex gap-3 items-center">
               <ShieldCheck size={18} className="text-gray-400" />
-              <p className="text-sm text-gray-500">Secure payment</p>
+              <p className="text-sm text-gray-500">Paiement sécurisé</p>
             </div>
             <div className="flex gap-3 items-center">
               <Truck size={18} className="text-gray-400" />
@@ -339,7 +339,7 @@ const onSubmit = async (data) => {
             </div>
             <div className="flex gap-3 items-center">
               <Headphones size={18} className="text-gray-400" />
-              <p className="text-sm text-gray-500">24/7 Support</p>
+              <p className="text-sm text-gray-500">Support 24h/24, 7j/7</p>
             </div>
           </div>
         </div>

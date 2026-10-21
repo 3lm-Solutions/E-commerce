@@ -38,12 +38,12 @@ function Cart() {
     return (
         <div className="text-center py-24">
             <h2 className="text-3xl font-bold">
-                Your cart is empty
+                Votre panier est vide
             </h2>
 
             <Link to="/products">
             <p className="text-gray-500 mt-4">
-                Start shopping to add products.
+                Parcourez le catalogue pour ajouter des produits.
             </p>
             </Link>
         </div>
@@ -56,7 +56,7 @@ function Cart() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-4xl font-extrabold tracking-tight">
-                    Your Cart
+                    Votre panier
                 </h1>
 
                 <button
@@ -64,7 +64,7 @@ function Cart() {
                     className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl shadow transition"
                 >
                     <Trash size={18} />
-                    Clear Cart
+                    Vider le panier
                 </button>
             </div>
 
@@ -162,11 +162,11 @@ function Cart() {
 
                             <div>
                                 <h2 className="text-2xl font-bold text-white">
-                                    Subtotal
+                                    Sous-total
                                 </h2>
 
                                 <p className="text-indigo-100">
-                                    {totalItems} {totalItems > 1 ? "items" : "item"}
+                                    {totalItems} {totalItems > 1 ? "articles" : "article"}
                                 </p>
                             </div>
                         </div>
@@ -207,7 +207,7 @@ function Cart() {
                     <div className="grid grid-cols-3 gap-2 mt-5 pt-5 border-t border-gray-100">
                         <div className="flex flex-col items-center text-center gap-1.5">
                             <ShieldCheck size={18} className="text-gray-400" />
-                            <p className="text-[11px] text-gray-500 leading-tight">Secure Checkout</p>
+                            <p className="text-[11px] text-gray-500 leading-tight">Paiement sécurisé</p>
                         </div>
                         <div className="flex flex-col items-center text-center gap-1.5">
                             <RotateCcw size={18} className="text-gray-400" />
@@ -217,7 +217,7 @@ function Cart() {
                         </div>
                         <div className="flex flex-col items-center text-center gap-1.5">
                             <Clock size={18} className="text-gray-400" />
-                            <p className="text-[11px] text-gray-500 leading-tight">24/7 Support</p>
+                            <p className="text-[11px] text-gray-500 leading-tight">Support 24h/24, 7j/7</p>
                         </div>
                     </div>
                 </div>
