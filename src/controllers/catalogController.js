@@ -301,8 +301,8 @@ class CatalogController {
           id: category.id,
           name: category.name,
           description: category.description,
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt
+          createdAt: category.get('created_at'),
+          updatedAt: category.get('updated_at')
         };
 
         // Ajouter le comptage si demandé

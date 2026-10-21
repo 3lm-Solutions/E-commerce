@@ -116,7 +116,7 @@ class AuthController {
         email: user.email,
         role: user.role,
         name: user.name,
-        createdAt: user.createdAt
+        createdAt: user.get('created_at')
       };
 
       console.log('[REGISTER] Réponse envoyée: 201');
@@ -223,7 +223,7 @@ class AuthController {
         email: user.email,
         role: user.role,
         name: user.name,
-        createdAt: user.createdAt
+        createdAt: user.get('created_at')
       };
 
       res.status(200).json({
@@ -315,8 +315,8 @@ class AuthController {
             email: user.email,
             role: user.role,
             name: user.name,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            createdAt: user.get('created_at'),
+            updatedAt: user.get('updated_at')
           }
         }
       });

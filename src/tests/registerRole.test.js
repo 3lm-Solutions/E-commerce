@@ -26,7 +26,11 @@ const PASSWORD = 'Password123';
 beforeEach(() => {
   jest.clearAllMocks();
   User.findOne.mockResolvedValue(null);
-  User.create.mockImplementation(async (data) => ({ ...data, createdAt: new Date() }));
+  // Comme une instance Sequelize : dates sous created_at (config/database.js), lues avec get()
+  User.create.mockImplementation(async (data) => {
+    const user = { ...data, created_at: new Date() };
+    return { ...user, get: (key) => user[key] };
+  });
   RefreshToken.create.mockResolvedValue({});
 });
 

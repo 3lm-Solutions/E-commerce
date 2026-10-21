@@ -145,6 +145,16 @@ describe('GET /api/auth/me', () => {
     expect(JSON.stringify(res.body)).not.toContain('"password"');
   });
 
+  test('renvoie la date d\'inscription (inscription et profil)', async () => {
+    const { res: registered } = await register();
+    expect(Date.parse(registered.body.data.user.createdAt)).not.toBeNaN();
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${registered.body.data.accessToken}`);
+    expect(Date.parse(JSON.stringify(res.body).match(/"createdAt":"([^"]+)"/)?.[1])).not.toBeNaN();
+  });
+
   test('401 sans token', async () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);

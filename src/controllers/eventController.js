@@ -55,7 +55,7 @@ class EventController {
                 eventType: event.eventType,
                 productId: event.productId,
                 sessionId: event.sessionId,
-                timestamp: event.createdAt
+                timestamp: event.get('created_at')
             }
             }
         });
@@ -131,7 +131,7 @@ class EventController {
                 productIds: event.productIds,
                 totalAmount: parseFloat(event.totalAmount),
                 sessionId: event.sessionId,
-                timestamp: event.createdAt
+                timestamp: event.get('created_at')
             }
             }
         });

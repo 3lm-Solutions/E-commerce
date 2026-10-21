@@ -53,8 +53,8 @@ class AdminCategoryController {
         id: category.id,
         name: category.name,
         description: category.description,
-        createdAt: category.createdAt,
-        updatedAt: category.updatedAt,
+        createdAt: category.get('created_at'),
+        updatedAt: category.get('updated_at'),
         productCount: parseInt(category.dataValues.productCount || 0, 10)
       }));
 
@@ -106,8 +106,8 @@ class AdminCategoryController {
         id: category.id,
         name: category.name,
         description: category.description,
-        createdAt: category.createdAt,
-        updatedAt: category.updatedAt,
+        createdAt: category.get('created_at'),
+        updatedAt: category.get('updated_at'),
         productCount: 0
       };
 
@@ -193,8 +193,8 @@ class AdminCategoryController {
         id: updatedCategory.id,
         name: updatedCategory.name,
         description: updatedCategory.description,
-        createdAt: updatedCategory.createdAt,
-        updatedAt: updatedCategory.updatedAt
+        createdAt: updatedCategory.get('created_at'),
+        updatedAt: updatedCategory.get('updated_at')
       };
 
       res.status(200).json({
