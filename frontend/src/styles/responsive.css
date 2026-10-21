@@ -1,0 +1,470 @@
+/* ==========================================
+   RESPONSIVE DESIGN & MOBILE-FIRST STYLES
+   Issue #8: UX/UI Improvements
+   ========================================== */
+
+/* Grid système responsive pour les produits */
+.product-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .product-grid {
+    gap: 2rem;
+  }
+}
+
+/* 3 colonnes au maximum sur desktop (cahier 06 §2.2), comme la grille de Products.jsx */
+@media (min-width: 1024px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Boutons et éléments touch-friendly */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.75rem;
+}
+
+/* Navigation mobile améliorée */
+.mobile-nav {
+  @apply md:hidden;
+}
+
+.mobile-nav-item {
+  @apply block px-4 py-3 text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50;
+}
+
+/* Cartes produits responsive */
+.product-card {
+  @apply bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 transition-all duration-300;
+}
+
+.product-card:hover {
+  @apply shadow-lg transform scale-105;
+}
+
+.product-card-image {
+  @apply w-full bg-gray-100 overflow-hidden;
+  height: 200px;
+}
+
+@media (min-width: 640px) {
+  .product-card-image {
+    height: 240px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-card-image {
+    height: 220px;
+  }
+}
+
+/* Layout responsive pour les forms */
+.form-grid {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+.form-grid-full {
+  @apply col-span-1;
+}
+
+@media (min-width: 640px) {
+  .form-grid-full {
+    @apply col-span-2;
+  }
+}
+
+/* Checkout responsive layout */
+.checkout-grid {
+  @apply grid gap-8;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .checkout-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+/* Panier responsive */
+.cart-item {
+  @apply grid gap-4 items-center bg-white border border-gray-200 rounded-2xl p-4 shadow-sm;
+  grid-template-columns: 80px 1fr auto;
+}
+
+@media (min-width: 640px) {
+  .cart-item {
+    @apply gap-6 p-6;
+    grid-template-columns: 120px 1fr 180px 140px 70px;
+  }
+}
+
+/* Tables responsive */
+.responsive-table {
+  @apply w-full overflow-x-auto;
+}
+
+.responsive-table table {
+  @apply min-w-full;
+}
+
+/* Sidebar responsive */
+.sidebar {
+  @apply hidden lg:block w-64 bg-white rounded-2xl border border-gray-200 p-6;
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+}
+
+.mobile-filter-toggle {
+  @apply lg:hidden mb-4;
+}
+
+/* Modal responsive */
+.modal-content {
+  @apply w-full max-w-md mx-4;
+}
+
+@media (min-width: 640px) {
+  .modal-content {
+    @apply max-w-lg mx-0;
+  }
+}
+
+@media (min-width: 768px) {
+  .modal-content {
+    @apply max-w-2xl;
+  }
+}
+
+/* Navigation breadcrumb mobile */
+.breadcrumb {
+  @apply flex items-center space-x-2 text-sm text-gray-500 mb-6;
+}
+
+.breadcrumb-item {
+  @apply hover:text-indigo-600 transition-colors;
+}
+
+.breadcrumb-separator {
+  @apply text-gray-300;
+}
+
+/* Hero section responsive */
+.hero-content {
+  @apply text-center px-4 py-12;
+}
+
+@media (min-width: 640px) {
+  .hero-content {
+    @apply py-16 px-6;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-content {
+    @apply py-24 px-8;
+  }
+}
+
+.hero-title {
+  @apply text-3xl font-bold text-gray-900 mb-4;
+}
+
+@media (min-width: 640px) {
+  .hero-title {
+    @apply text-4xl mb-6;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-title {
+    @apply text-6xl;
+  }
+}
+
+/* Footer responsive */
+.footer-grid {
+  @apply grid gap-8;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .footer-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .footer-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Animations et transitions améliorées */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.slide-in-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.bounce-in {
+  animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animations de hover subtiles */
+.hover-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.hover-scale {
+  transition: transform 0.2s ease-out;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s ease-out;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+/* Animations de focus pour l'accessibilité */
+.focus-ring {
+  transition: box-shadow 0.15s ease-out;
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+/* Animations de chargement avancées */
+.skeleton-wave {
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.4), 
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: skeletonWave 1.5s infinite;
+}
+
+@keyframes skeletonWave {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.typing-indicator {
+  animation: typingPulse 1.4s infinite ease-in-out;
+}
+
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animations staggered pour les listes */
+.stagger-item {
+  animation: staggerFadeIn 0.5s ease-out backwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.1s; }
+.stagger-item:nth-child(2) { animation-delay: 0.2s; }
+.stagger-item:nth-child(3) { animation-delay: 0.3s; }
+.stagger-item:nth-child(4) { animation-delay: 0.4s; }
+.stagger-item:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* States et feedback visuels */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.pulse-subtle {
+  animation: pulseSubtle 2s infinite;
+}
+
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Focus visible amélioré pour l'accessibilité */
+.focus-visible {
+  @apply outline-none ring-2 ring-indigo-500 ring-offset-2;
+}
+
+/* Utilitaires pour masquer/afficher selon la taille d'écran */
+.mobile-only {
+  @apply block sm:hidden;
+}
+
+.desktop-only {
+  @apply hidden lg:block;
+}
+
+.tablet-up {
+  @apply hidden sm:block;
+}
+
+/* Dark mode support (préparation future) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1f2937;
+    --bg-secondary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break {
+    page-break-after: always;
+  }
+}
