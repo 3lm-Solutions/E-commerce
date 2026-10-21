@@ -54,9 +54,10 @@ useEffect(()=>{
         loadCategories();
     },[]);
 
-// "Produits tendance" : les plus vus des 7 derniers jours (GET /recommendations/trending).
-// Sans vue récente, la liste est vide : on affiche alors les mieux notés.
-const TRENDING_COUNT = 4;
+// "Produits tendance" : 8 produits (cahier 06 §2.1), les plus vus des 7 derniers jours
+// (GET /recommendations/trending). S'il y en a moins de 8 (peu de vues récentes),
+// on complète avec les mieux notés.
+const TRENDING_COUNT = 8;
 
 useEffect(()=>{
         async function loadProducts(){
@@ -68,18 +69,22 @@ useEffect(()=>{
                     id: p.id, name: p.name, price: p.price, image: p.image,
                     category: p.category, rating: p.ratingAvg ?? 0,
                 }));
-                if(trending.length > 0){
+                if(trending.length >= TRENDING_COUNT){
                     setProducts(trending);
                     return;
                 }
 
-                const fallback = await fetch(`/api/products?limit=${TRENDING_COUNT}&sortBy=ratingAvg&sortOrder=desc`);
+                const fallback = await fetch(`/api/products?limit=${TRENDING_COUNT * 2}&sortBy=ratingAvg&sortOrder=desc`);
                 if(!fallback.ok) throw new Error(`HTTP ${fallback.status}`);
                 const data = await fallback.json();
-                setProducts((data.data?.products || []).map((p)=>({
-                    id: p.id, name: p.name, price: p.price, image: p.images?.[0],
-                    category: p.category?.name, rating: Number(p.ratingAvg) || 0,
-                })));
+                const shown = new Set(trending.map((p)=>p.id));
+                const topRated = (data.data?.products || [])
+                    .filter((p)=>!shown.has(p.id))
+                    .map((p)=>({
+                        id: p.id, name: p.name, price: p.price, image: p.images?.[0],
+                        category: p.category?.name, rating: Number(p.ratingAvg) || 0,
+                    }));
+                setProducts([...trending, ...topRated].slice(0, TRENDING_COUNT));
             }catch(error){
                 console.error("Produits tendance :", error);
                 setProducts([]);
