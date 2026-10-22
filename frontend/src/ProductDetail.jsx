@@ -581,6 +581,9 @@ function ProductDetail() {
                 })}
             </div>
 
+            {/* Section masquée s'il n'y a aucun produit similaire */}
+            {produitSimilaire.length > 0 && (
+            <>
             <div className="mt-10">
                 <h2 className="text-2xl font-bold text-gray-900">Produits similaires</h2>
             </div>
@@ -622,6 +625,8 @@ function ProductDetail() {
                     );
                 })}
             </div>
+            </>
+            )}
         </div>
     );
 }

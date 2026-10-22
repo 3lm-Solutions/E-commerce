@@ -41,11 +41,13 @@ function calculateSimilarityScore(product1, product2) {
     score += commonTagsCount * SCORE_PER_COMMON_TAG;
   }
 
-  //  Prix proche (±20%) (+1)
+  //  Prix proche (±20%) (+1), seulement s'il y a déjà un point commun
+  //  (catégorie ou tag) : un prix proche seul ne rend pas deux produits similaires
+  //  (sinon un canapé était "similaire" à une console).
   const price1 = parseFloat(product1.price);
   const price2 = parseFloat(product2.price);
 
-  if (!isNaN(price1) && !isNaN(price2) && price1 > 0) {
+  if (score > 0 && !isNaN(price1) && !isNaN(price2) && price1 > 0) {
     const priceDifference = Math.abs(price1 - price2) / price1;
     if (priceDifference <= PRICE_TOLERANCE) {
       score += SCORE_PRICE_CLOSE;

@@ -13,11 +13,12 @@ const firstImage = (p) => (p.images && p.images[0]) || null;
 const normalize = (text) => (text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 // Score de similarité : +3 même catégorie, +2 par tag commun, +1 prix à ±20 %
+// (le prix ne compte que s'il y a déjà une catégorie ou un tag en commun)
 function similarityScore(p1, p2) {
     let score = p1.category_id === p2.category_id ? 3 : 0;
     const tags1 = new Set((p1.tags || []).map((t) => t.toLowerCase().trim()));
     score += (p2.tags || []).filter((t) => tags1.has(t.toLowerCase().trim())).length * 2;
-    if (p1.price > 0 && Math.abs(p1.price - p2.price) / p1.price <= 0.2) score += 1;
+    if (score > 0 && p1.price > 0 && Math.abs(p1.price - p2.price) / p1.price <= 0.2) score += 1;
     return score;
 }
 
