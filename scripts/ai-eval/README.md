@@ -21,11 +21,11 @@ et dans `.env` : `GROQ_API_KEY` (et `GEMINI_API_KEY` pour Gemini).
 
 ```bash
 node scripts/ai-eval/run.js --provider groq --repeat 3
-node scripts/ai-eval/run.js --provider gemini --model gemini-2.5-flash --repeat 3
+node scripts/ai-eval/run.js --provider gemini --model gemini-3.5-flash --repeat 1
 node scripts/ai-eval/run.js --provider groq --only chatbot,nlp
 ```
 
-- `--model` : modèle à tester (défaut : `GROQ_MODEL`, ou `GEMINI_MODEL` / `gemini-2.5-flash`).
+- `--model` : modèle à tester (défaut : `GROQ_MODEL`, ou `GEMINI_MODEL` / `gemini-3.5-flash`).
 - `--repeat N` : chaque cas qui appelle l'IA est joué N fois (les réponses varient d'un appel à l'autre) ;
   un cas n'est réussi que s'il passe à chaque essai.
 - `--only` : `chatbot`, `nlp`, `reviews`, `descriptions`, `reco`.
@@ -39,3 +39,9 @@ Les vérifications sont automatiques (mots attendus, montants, nombre de phrases
 elles ne remplacent pas une relecture. Une réponse peut passer les vérifications et
 contenir une erreur que rien ne cherche (par exemple deux notes inversées) : relire
 les réponses du rapport.
+
+Gemini est testé avec un compte gratuit (pas d'API payante), ce qui limite la comparaison :
+quota vite épuisé sur `gemini-3.8-flash` (erreur 429), surcharges fréquentes (erreur 503)
+sur `gemini-3.5-flash`, et les modèles `gemini-2.5-*` ne sont plus disponibles (erreur 404).
+Gemini est donc lancé avec `--repeat 1`. Un cas en erreur 429 ou 503 est « indisponible » :
+ce n'est pas une mauvaise réponse du modèle.

@@ -7,7 +7,7 @@
  * automatiquement.
  *
  *   node scripts/ai-eval/run.js --provider groq
- *   node scripts/ai-eval/run.js --provider gemini --model gemini-2.5-flash
+ *   node scripts/ai-eval/run.js --provider gemini --model gemini-3.5-flash
  *   node scripts/ai-eval/run.js --provider groq --only chatbot,nlp
  *
  * Fonctionnalités : chatbot, nlp, reviews (résumé d'avis), descriptions, reco.

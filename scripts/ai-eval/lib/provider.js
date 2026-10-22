@@ -12,7 +12,7 @@ const PROVIDERS = {
   gemini: {
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     keyEnv: 'GEMINI_API_KEY',
-    defaultModel: () => process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+    defaultModel: () => process.env.GEMINI_MODEL || 'gemini-3.5-flash'
   }
 };
 
